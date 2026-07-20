@@ -1,0 +1,29 @@
+Activar entorno:
+source .venv/bin/activate
+
+Para ejecutar comandos de project.toml
+uv run poe [comando]
+
+Instalar librerías nuevas
+uv pip install [librería]
+
+Instalar librerías de proyecto
+- Desde requeriments.txt: uv pip install -r requirements.txt (o el nombre del archivo formato txt)
+- Desde pyproject.toml: uv pip install -r pyproject.toml
+
+Agregar dependencias
+uv add [librería] (permite usar flags --dev, --group, --optional)
+Ejemplo: uv add --dev pytest
+
+Quitar dependencias
+uv remove [librería] (permite usar flags --dev, --group, --optional)
+
+Desinstalar librería
+uv pip uninstall [librería]
+
+Importar dependencias desde documento
+uv add -r requirements.txt
+
+Sincronizar dependencias (instala desde pyproject.toml)
+uv sync
+uv sync --no-dev (para instalar solo de producción)

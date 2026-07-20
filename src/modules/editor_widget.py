@@ -50,9 +50,9 @@ class EditorWidget(QTextEdit):
         # Delegar controles nativos directamente si corresponde
         if self.m_isTextViewMode or event.key() in (
             Qt.Key.Key_Backspace,
-            Qt.Key_Delete,
-            Qt.Key_Return,
-            Qt.Key_Enter,
+            Qt.Key.Key_Delete,
+            Qt.Key.Key_Return,
+            Qt.Key.Key_Enter,
         ):
             super().keyPressEvent(event)
             return

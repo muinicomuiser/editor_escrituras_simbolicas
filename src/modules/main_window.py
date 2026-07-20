@@ -239,7 +239,7 @@ class MainWindow(QMainWindow):
 
     def onExportImage(self):
         file_name, _ = QFileDialog.getSaveFileName(
-            self, "Exportar como Imagen", "", "Imagen PNG (*.png)"
+            self, "Exportar como Imagen", "untiled.png", "Imagen PNG (*.png)"
         )
         if not file_name:
             return
@@ -256,7 +256,8 @@ class MainWindow(QMainWindow):
 
         for i in range(total_pages):
             pixmap = QPixmap(page_width, page_height)
-            pixmap.fill(Qt.GlobalColor.white)
+            # pixmap.fill(Qt.GlobalColor.white)
+            pixmap.fill(Qt.GlobalColor.transparent)
 
             painter = QPainter(pixmap)
             painter.save()
