@@ -1,6 +1,9 @@
+import json
 import os
 import math
+import PySide6
 from PySide6.QtWidgets import (
+    QLayout,
     QMainWindow,
     QWidget,
     QHBoxLayout,
@@ -11,81 +14,35 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMessageBox,
 )
-from PySide6.QtGui import QAction, QPageSize, QPdfWriter, QPainter, QPixmap
+from PySide6.QtGui import QAction, QKeySequence, QPageSize, QPdfWriter, QPainter, QPixmap
 from PySide6.QtCore import Qt, QMarginsF, QRectF, QJsonDocument
 
+from modules.config.config import Config
 from modules.editor_widget import EditorWidget
 
 # , QJsonObject
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, parent=None):
+    def __init__(self, config: Config, parent=None):
         super().__init__(parent)
+        self.config = config
 
-        container = QWidget(self)
-        layout = QHBoxLayout(container)
+
+
+        self.container = QWidget(self)
+        self.main_layout = QHBoxLayout(self.container)
 
         self.m_editor = EditorWidget(self)
-        layout.addWidget(self.m_editor)
-        layout.setAlignment(self.m_editor, Qt.AlignmentFlag.AlignHCenter)
-        layout.setContentsMargins(0, 20, 0, 20)
+        self.main_layout.addWidget(self.m_editor)
+        self.main_layout.setAlignment(self.m_editor, Qt.AlignmentFlag.AlignHCenter)
+        self.main_layout.setContentsMargins(0, 20, 0, 20)
 
-        self.setCentralWidget(container)
-
-        # ---- BARRA DE HERRAMIENTAS ----
-        self.m_mainToolBar = QToolBar("Barra de Herramientas", self)
-        self.addToolBar(self.m_mainToolBar)
-
-        # Abrir
-        self.m_openAction = QAction("Abrir Archivo", self)
-        self.m_mainToolBar.addAction(self.m_openAction)
-        self.m_openAction.triggered.connect(self.onOpenFile)
-
-        # Guardar
-        self.m_saveAction = QAction("Guardar Como...", self)
-        self.m_mainToolBar.addAction(self.m_saveAction)
-        self.m_saveAction.triggered.connect(self.onSaveFile)
-
-        self.m_mainToolBar.addSeparator()
-
-        # Exportar PDF
-        self.m_exportPdfAction = QAction("Exportar PDF", self)
-        self.m_mainToolBar.addAction(self.m_exportPdfAction)
-        self.m_exportPdfAction.triggered.connect(self.onExportPdf)
-
-        # Exportar Imagen
-        self.m_exportImageAction = QAction("Exportar Imagen", self)
-        self.m_mainToolBar.addAction(self.m_exportImageAction)
-        self.m_exportImageAction.triggered.connect(self.onExportImage)
-
-        self.m_mainToolBar.addSeparator()
-
-        # Selector de Tamaño de Fuente
-        size_label = QLabel(" Tamaño: ", self)
-        self.m_mainToolBar.addWidget(size_label)
-
-        self.m_sizeSpinner = QSpinBox(self)
-        self.m_sizeSpinner.setRange(16, 128)
-        self.m_sizeSpinner.setValue(48)
-        self.m_sizeSpinner.setSuffix(" px")
-        self.m_mainToolBar.addWidget(self.m_sizeSpinner)
-        self.m_sizeSpinner.valueChanged.connect(self.onImageSizeChanged)
-
-        self.m_mainToolBar.addSeparator()
-
-        # Cambiar Set
-        self.m_changeDirAction = QAction("Cambiar Set", self)
-        self.m_mainToolBar.addAction(self.m_changeDirAction)
-        self.m_changeDirAction.triggered.connect(self.onChangeDirectory)
-
-        self.m_mainToolBar.addSeparator()
-
-        # Alternar Vista
-        self.m_toggleViewAction = QAction("Modo Texto", self)
-        self.m_toggleViewAction.setCheckable(True)
-        self.m_mainToolBar.addAction(self.m_toggleViewAction)
-        self.m_toggleViewAction.toggled.connect(self.onToggleViewChanged)
+        self.setCentralWidget(self.container)
+        self._init_toolbar()
+        self.setWindowTitle("Editor de Texto con Imágenes")
+        self.resize(self.config.WIDTH, self.config.HEIGHT)
+        # self.show()
 
     def onToggleViewChanged(self, checked: bool):
         if checked:
@@ -115,7 +72,7 @@ class MainWindow(QMainWindow):
 
     def onSaveFile(self):
         file_name, _ = QFileDialog.getSaveFileName(
-            self, "Guardar Proyecto", "", "Archivo de Proyecto (*.json)"
+            self, "Guardar Proyecto", "untiled.json", "Archivo de Proyecto (*.json)"
         )
         if not file_name:
             return
@@ -141,8 +98,8 @@ class MainWindow(QMainWindow):
         }
 
         try:
-            # doc = QJsonDocument(QJsonObject(project_dict))
-            doc = QJsonDocument.fromJson(project_dict)
+            # doc = QJsonDocument.fromJson(json.dumps(project_dict).encode("utf8")) # Este método ejecuta una doble serialización
+            doc = QJsonDocument.fromVariant(project_dict) # Este método ejecuta una sola serialización
             with open(file_name, "w", encoding="utf-8") as f:
                 f.write(
                     doc.toJson(QJsonDocument.JsonFormat.Indented).data().decode("utf-8")
@@ -192,7 +149,7 @@ class MainWindow(QMainWindow):
 
     def onExportPdf(self):
         file_name, _ = QFileDialog.getSaveFileName(
-            self, "Exportar a PDF", "", "Documento PDF (*.pdf)"
+            self, "Exportar a PDF","untiled.pdf", "Documento PDF (*.pdf)"
         )
         if not file_name:
             return
@@ -289,3 +246,68 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self, "Set Cambiado", f"Se han cargado los símbolos desde: {directory}"
             )
+
+    # ---- BARRA DE HERRAMIENTAS ----
+    def _init_toolbar(self):
+        self.m_mainToolBar = QToolBar("Barra de Herramientas", self)
+        self.addToolBar(self.m_mainToolBar)
+
+        # Abrir
+        self.m_openAction = QAction("Abrir", self)
+        # self.m_mainToolBar.addAction(self.m_openAction)
+        self.m_openAction.triggered.connect(self.onOpenFile)
+        open_key_combination = QKeySequence.fromString("Ctrl+O")
+        self.m_openAction.setShortcut(open_key_combination)
+
+        # Guardar
+        self.m_saveAction = QAction("Guardar Como...", self)
+        # self.m_mainToolBar.addAction(self.m_saveAction)
+        self.m_saveAction.triggered.connect(self.onSaveFile)
+
+        self.m_mainToolBar.addSeparator()
+
+        # Exportar PDF
+        self.m_exportPdfAction = QAction("Exportar PDF", self)
+        # self.m_mainToolBar.addAction(self.m_exportPdfAction)
+        self.m_exportPdfAction.triggered.connect(self.onExportPdf)
+
+        # Exportar Imagen
+        self.m_exportImageAction = QAction("Exportar Imagen", self)
+        # self.m_mainToolBar.addAction(self.m_exportImageAction)
+        self.m_exportImageAction.triggered.connect(self.onExportImage)
+
+        self.m_mainToolBar.addSeparator()
+
+        # Selector de Tamaño de Fuente
+        size_label = QLabel(" Tamaño: ", self)
+        self.m_mainToolBar.addWidget(size_label)
+
+        self.m_sizeSpinner = QSpinBox(self)
+        self.m_sizeSpinner.setRange(16, 128)
+        self.m_sizeSpinner.setValue(48)
+        self.m_sizeSpinner.setSuffix(" px")
+        self.m_mainToolBar.addWidget(self.m_sizeSpinner)
+        self.m_sizeSpinner.valueChanged.connect(self.onImageSizeChanged)
+
+        self.m_mainToolBar.addSeparator()
+
+        # Cambiar Set
+        self.m_changeDirAction = QAction("Cambiar Set", self)
+        self.m_mainToolBar.addAction(self.m_changeDirAction)
+        self.m_changeDirAction.triggered.connect(self.onChangeDirectory)
+
+        self.m_mainToolBar.addSeparator()
+
+        # Alternar Vista
+        self.m_toggleViewAction = QAction("Modo Texto", self)
+        self.m_toggleViewAction.setCheckable(True)
+        self.m_mainToolBar.addAction(self.m_toggleViewAction)
+        self.m_toggleViewAction.toggled.connect(self.onToggleViewChanged)
+
+        menu = self.menuBar()
+
+        file_menu = menu.addMenu("&Archivo")
+        file_menu.addAction(self.m_openAction)
+        file_menu.addAction(self.m_saveAction)
+        file_menu.addAction(self.m_exportPdfAction)
+        file_menu.addAction(self.m_exportImageAction)
