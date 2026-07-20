@@ -21,6 +21,8 @@ class EditorWidget(QTextEdit):
 
         self.setAcceptRichText(True)
 
+
+
         # 1. Configuración de Fuente Base
         fuente_original = self.font()
         fuente_original.setPointSize(24)
@@ -41,6 +43,7 @@ class EditorWidget(QTextEdit):
         # 3. Estilo Visual
         self.setStyleSheet("QTextEdit { background-color: white; color: #444444; }")
         self.setFixedWidth(834)
+        # self.setFixedWidth(794)
 
     def setImageScale(self, scale: float):
         if scale > 0.1:
@@ -80,7 +83,7 @@ class EditorWidget(QTextEdit):
             cursor.setCharFormat(formato_limpio)
             cursor.insertImage(image_format)
             self.setTextCursor(cursor)
-            return  # Consumimos el evento
+            return
 
         super().keyPressEvent(event)
         self.update()
@@ -123,12 +126,12 @@ class EditorWidget(QTextEdit):
         if not self.m_isTextViewMode:
             return
         self.m_isTextViewMode = False
+        self.blockSignals(True)
 
         current_text = self.toPlainText()
         self.clear()
 
         cursor = self.textCursor()
-        self.blockSignals(True)
 
         # Mapa de filtrado de acentos y caracteres especiales
         tildes = {

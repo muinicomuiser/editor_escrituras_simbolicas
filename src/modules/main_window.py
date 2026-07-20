@@ -1,26 +1,21 @@
-import json
 import os
 import math
-import PySide6
 from PySide6.QtWidgets import (
-    QLayout,
     QMainWindow,
     QWidget,
     QHBoxLayout,
     QToolBar,
-    # QAction,
     QLabel,
     QSpinBox,
     QFileDialog,
     QMessageBox,
 )
 from PySide6.QtGui import QAction, QKeySequence, QPageSize, QPdfWriter, QPainter, QPixmap
-from PySide6.QtCore import Qt, QMarginsF, QRectF, QJsonDocument
+from PySide6.QtCore import Qt, QMarginsF, QRectF
 
 from modules.config.config import Config
 from modules.editor_widget import EditorWidget
-
-# , QJsonObject
+from modules.file_manager import FileManager
 
 
 class MainWindow(QMainWindow):
@@ -33,10 +28,16 @@ class MainWindow(QMainWindow):
         self.container = QWidget(self)
         self.main_layout = QHBoxLayout(self.container)
 
+
         self.m_editor = EditorWidget(self)
         self.main_layout.addWidget(self.m_editor)
         self.main_layout.setAlignment(self.m_editor, Qt.AlignmentFlag.AlignHCenter)
         self.main_layout.setContentsMargins(0, 20, 0, 20)
+
+        self.file_manager = FileManager()
+        self.actual_file_name = None
+        self.m_editor.textChanged.connect(self.file_manager.set_to_unsaved)   # Conecta señales entre componentes     
+
 
         self.setCentralWidget(self.container)
         self._init_toolbar()
@@ -68,76 +69,15 @@ class MainWindow(QMainWindow):
             self.m_editor.switchToTextView()
             self.m_editor.switchToImageView()
 
-    # ---- LÓGICA DE ARCHIVOS (PERSISTENCIA Y EXPORTACIÓN) ----
-
-    def onSaveFile(self):
-        file_name, _ = QFileDialog.getSaveFileName(
-            self, "Guardar Proyecto", "untiled.json", "Archivo de Proyecto (*.json)"
-        )
-        if not file_name:
-            return
-
-        if not file_name.lower().endswith(".json"):
-            file_name += ".json"
-
-        # Extraer el texto de forma segura sin romper la vista actual
-        was_in_images_mode = not self.m_toggleViewAction.isChecked()
-        if was_in_images_mode:
-            self.m_editor.switchToTextView()
-
-        content_to_save = self.m_editor.toPlainText()
-
-        if was_in_images_mode:
-            self.m_editor.switchToImageView()
-
-        project_dict = {
-            "version": "1.0",
-            "content": content_to_save,
-            "imageSize": self.m_sizeSpinner.value(),
-            "assetsDirectory": self.m_editor.getAssetsDirectory(),
-        }
-
-        try:
-            # doc = QJsonDocument.fromJson(json.dumps(project_dict).encode("utf8")) # Este método ejecuta una doble serialización
-            doc = QJsonDocument.fromVariant(project_dict) # Este método ejecuta una sola serialización
-            with open(file_name, "w", encoding="utf-8") as f:
-                f.write(
-                    doc.toJson(QJsonDocument.JsonFormat.Indented).data().decode("utf-8")
-                )
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"No se pudo crear el archivo de proyecto: {str(e)}"
-            )
-
     def onOpenFile(self):
-        file_name, _ = QFileDialog.getOpenFileName(
-            self, "Abrir Proyecto", "", "Archivo de Proyecto (*.json)"
-        )
-        if not file_name:
+        file = self.file_manager.openFile(self.window())
+
+        if file is None:
             return
-
-        try:
-            with open(file_name, "r", encoding="utf-8") as f:
-                data = f.read()
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"No se pudo abrir el archivo: {str(e)}"
-            )
-            return
-
-        json_doc = QJsonDocument.fromJson(data.encode("utf-8"))
-        if json_doc.isNull() or not json_doc.isObject():
-            QMessageBox.critical(self, "Error", "El archivo no es un proyecto válido.")
-            return
-
-        project_obj = json_doc.object()
-        text_content = project_obj.get("content", "")
-        saved_size = project_obj.get("imageSize", 32)
-        saved_dir = project_obj.get("assetsDirectory", "assets/default_set")
-
-        # Cargar directorio de recursos y disparar spinner
+        
+        text_content, font_size, saved_dir, file_name = file
         self.m_editor.changeAssetsDirectory(saved_dir)
-        self.m_sizeSpinner.setValue(saved_size)
+        self.m_sizeSpinner.setValue(font_size)
 
         self.m_editor.clear()
         if self.m_toggleViewAction.isChecked():
@@ -146,6 +86,45 @@ class MainWindow(QMainWindow):
             self.m_editor.switchToTextView()
             self.m_editor.setPlainText(text_content)
             self.m_editor.switchToImageView()
+
+        if file_name is not None:
+            self.actual_file_name = file_name
+            self.file_manager.set_to_saved()
+             
+
+
+    def onSaveFile(self):
+        if self.actual_file_name is None:
+            self.onSaveFileAs()
+        was_in_images_mode = not self.m_toggleViewAction.isChecked()
+        if was_in_images_mode:
+            self.m_editor.switchToTextView()
+        content_to_save = self.m_editor.toPlainText()
+        project_dict = {
+            "version": "1.0",
+            "content": content_to_save,
+            "imageSize": self.m_sizeSpinner.value(),
+            "assetsDirectory": self.m_editor.getAssetsDirectory(),
+        }
+        if was_in_images_mode:
+            self.m_editor.switchToImageView()
+        self.file_manager.saveFile(self.window(), project_dict, self.actual_file_name)
+        
+    def onSaveFileAs(self):
+        was_in_images_mode = not self.m_toggleViewAction.isChecked()
+        if was_in_images_mode:
+            self.m_editor.switchToTextView()
+        content_to_save = self.m_editor.toPlainText()
+        project_dict = {
+            "version": "1.0",
+            "content": content_to_save,
+            "imageSize": self.m_sizeSpinner.value(),
+            "assetsDirectory": self.m_editor.getAssetsDirectory(),
+        }
+        if was_in_images_mode:
+            self.m_editor.switchToImageView()
+        file_name = self.file_manager.saveFileAs(self.window(), project_dict)
+        self.actual_file_name = file_name
 
     def onExportPdf(self):
         file_name, _ = QFileDialog.getSaveFileName(
@@ -260,9 +239,15 @@ class MainWindow(QMainWindow):
         self.m_openAction.setShortcut(open_key_combination)
 
         # Guardar
-        self.m_saveAction = QAction("Guardar Como...", self)
+        self.m_saveAsAction = QAction("Guardar Como...", self)
+        # self.m_mainToolBar.addAction(self.m_saveAction)
+        self.m_saveAsAction.triggered.connect(self.onSaveFileAs)
+
+        self.m_saveAction = QAction("Guardar", self)
         # self.m_mainToolBar.addAction(self.m_saveAction)
         self.m_saveAction.triggered.connect(self.onSaveFile)
+        save_key_combination = QKeySequence.fromString("Ctrl+S")
+        self.m_saveAction.setShortcut(save_key_combination)
 
         self.m_mainToolBar.addSeparator()
 
@@ -309,5 +294,6 @@ class MainWindow(QMainWindow):
         file_menu = menu.addMenu("&Archivo")
         file_menu.addAction(self.m_openAction)
         file_menu.addAction(self.m_saveAction)
+        file_menu.addAction(self.m_saveAsAction)
         file_menu.addAction(self.m_exportPdfAction)
         file_menu.addAction(self.m_exportImageAction)
