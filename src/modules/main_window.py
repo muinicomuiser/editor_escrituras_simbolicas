@@ -1,6 +1,8 @@
 import os
 import math
 from PySide6.QtWidgets import (
+    QComboBox,
+    QFontComboBox,
     QMainWindow,
     QWidget,
     QHBoxLayout,
@@ -10,7 +12,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMessageBox,
 )
-from PySide6.QtGui import QAction, QKeySequence, QPageSize, QPdfWriter, QPainter, QPixmap
+from PySide6.QtGui import QAction, QFontMetrics, QIntValidator, QKeySequence, QPageSize, QPdfWriter, QPainter, QPixmap
 from PySide6.QtCore import Qt, QMarginsF, QRectF
 
 from modules.config.config import Config
@@ -40,7 +42,7 @@ class MainWindow(QMainWindow):
 
 
         self.setCentralWidget(self.container)
-        self._init_toolbar()
+        self.__init_toolbar()
         self.setWindowTitle("Editor de Texto con Imágenes")
         self.resize(self.config.WIDTH, self.config.HEIGHT)
         # self.show()
@@ -53,21 +55,63 @@ class MainWindow(QMainWindow):
             self.m_toggleViewAction.setText("Modo Texto")
             self.m_editor.switchToImageView()
 
-    def onImageSizeChanged(self, new_size: int):
-        # 1. Escala proporcional basada en 32px
-        nueva_escala = float(new_size) / 32.0
-        self.m_editor.setImageScale(nueva_escala)
+    def onImageSizeChanged(self):
+        new_size_str = self.m_font_size.currentText()
+        if not new_size_str:
+            self.m_font_size.setCurrentText(str(self.m_editor.font().pointSize()))
+        elif new_size_str == str(self.m_editor.font().pointSize()):
+            pass
+        else:
+            new_size = int(new_size_str)
 
-        # 2. Re-dimensionamiento de la tipografía y el espaciado
-        fuente = self.m_editor.font()
-        fuente.setPointSize(int(new_size * 0.75))
-        fuente.setWordSpacing(float(new_size))
-        self.m_editor.setFont(fuente)
+            fuente = self.m_editor.font()
+            fuente.setPointSize(int(new_size))
+            fuente.setWordSpacing(float(new_size))
+            self.m_editor.setFont(fuente)
 
-        # 3. Forzar reconstrucción si está en modo imágenes
-        if not self.m_toggleViewAction.isChecked():
-            self.m_editor.switchToTextView()
-            self.m_editor.switchToImageView()
+            font_metrics = QFontMetrics(self.m_editor.font())
+            # print(font_metrics.size(Qt.TextSingleLine, " ").width())
+            font_width = font_metrics.horizontalAdvance("W")
+
+            nueva_escala = float(font_width) / 24.0
+            self.m_editor.setImageScale(nueva_escala)
+
+
+            if not self.m_toggleViewAction.isChecked():
+                self.m_editor.switchToTextView()
+                self.m_editor.switchToImageView()
+
+
+        self.m_editor.setFocus()
+
+
+    # def onImageSizeChanged(self):
+    #     new_size_str = self.m_font_size.currentText()
+    #     if not new_size_str:
+    #         self.m_font_size.setCurrentText(str(self.m_editor.font().pointSize()))
+    #     elif new_size_str == str(self.m_editor.font().pointSize()):
+    #         pass
+    #     else:
+    #         new_size = int(new_size_str)
+    #         # new_size = int(size_str)
+    #         # 1. Escala proporcional basada en 32px
+    #         nueva_escala = float(new_size) / 32.0
+    #         self.m_editor.setImageScale(nueva_escala)
+
+    #         # 2. Re-dimensionamiento de la tipografía y el espaciado
+    #         fuente = self.m_editor.font()
+    #         fuente.setPointSize(int(new_size * 0.75))
+    #         fuente.setWordSpacing(float(new_size))
+    #         self.m_editor.setFont(fuente)
+
+    #         # 3. Forzar reconstrucción si está en modo imágenes
+    #         if not self.m_toggleViewAction.isChecked():
+    #             self.m_editor.switchToTextView()
+    #             self.m_editor.switchToImageView()
+    #     # font_metrics = QFontMetrics(self.m_editor.font())
+    #     # print(font_metrics.size(Qt.TextSingleLine, " ").width())
+    #     # print(font_metrics.horizontalAdvance(" "))
+    #     self.m_editor.setFocus()
 
     def onOpenFile(self):
         file = self.file_manager.openFile(self.window())
@@ -227,7 +271,7 @@ class MainWindow(QMainWindow):
             )
 
     # ---- BARRA DE HERRAMIENTAS ----
-    def _init_toolbar(self):
+    def __init_toolbar(self):
         self.m_mainToolBar = QToolBar("Barra de Herramientas", self)
         self.addToolBar(self.m_mainToolBar)
 
@@ -239,7 +283,7 @@ class MainWindow(QMainWindow):
         self.m_openAction.setShortcut(open_key_combination)
 
         # Guardar
-        self.m_saveAsAction = QAction("Guardar Como...", self)
+        self.m_saveAsAction = QAction("Guardar como...", self)
         # self.m_mainToolBar.addAction(self.m_saveAction)
         self.m_saveAsAction.triggered.connect(self.onSaveFileAs)
 
@@ -264,15 +308,30 @@ class MainWindow(QMainWindow):
         self.m_mainToolBar.addSeparator()
 
         # Selector de Tamaño de Fuente
-        size_label = QLabel(" Tamaño: ", self)
+        size_label = QLabel(self)
+        # size_label = QLabel(" Tamaño: ", self)
         self.m_mainToolBar.addWidget(size_label)
 
-        self.m_sizeSpinner = QSpinBox(self)
-        self.m_sizeSpinner.setRange(16, 128)
-        self.m_sizeSpinner.setValue(48)
-        self.m_sizeSpinner.setSuffix(" px")
-        self.m_mainToolBar.addWidget(self.m_sizeSpinner)
-        self.m_sizeSpinner.valueChanged.connect(self.onImageSizeChanged)
+        # self.m_sizeSpinner = QSpinBox(self)
+        # self.m_sizeSpinner.setRange(16, 128)
+        # self.m_sizeSpinner.setValue(48)
+        # self.m_sizeSpinner.setSuffix(" px")
+        # self.m_mainToolBar.addWidget(self.m_sizeSpinner)
+        # self.m_sizeSpinner.valueChanged.connect(self.onImageSizeChanged)
+
+        self.m_font_size = QComboBox(self)
+        self.m_font_size.addItems(["1", "2", "4", "6", "8", "10", "12", "14", "18", "22", "24", "28", "32", "36", "40", "44", "48", "52", "56", "60", "66", "72", "80", "88", "96"])
+        self.m_font_size.setCurrentText("40")
+        self.m_font_size.setEditable(True)
+        self.m_font_size.lineEdit().returnPressed.connect(self.onImageSizeChanged)
+        self.m_font_size.currentIndexChanged.connect(self.onImageSizeChanged)
+        self.m_font_size.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        # self.m_font_size.valueChanged.connect(self.onImageSizeChanged)
+        # # validador = QIntValidator(1, 200, self)
+        # # self.m_font_size.setValidator(validador)
+        # # self.m_font_size.setSuffix(" px")
+        self.m_mainToolBar.addWidget(self.m_font_size)
+      
 
         self.m_mainToolBar.addSeparator()
 

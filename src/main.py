@@ -13,7 +13,6 @@ def main():
     # main_window.setWindowTitle("Editor de Texto con Imágenes")
     # main_window.resize(1024, 768)
     main_window.show()
-
     sys.exit(app.exec())
 
 
