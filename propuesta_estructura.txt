@@ -1,0 +1,83 @@
+By Gemini
+
+mi_proyecto/
+├── pyproject.toml                     # Configuración del proyecto, dependencias y scripts
+├── README.md
+├── tests/                             # Pruebas unitarias e integración (espeja la carpeta src/)
+│   ├── domain/
+│   ├── application/
+│   └── infrastructure/
+│
+└── src/
+    └── editor_app/                    # Paquete principal de la aplicación
+        ├── __init__.py
+        ├── main.py                    # COMPOSITION ROOT: Instancia servicios, inyecta dependencias y lanza la app
+        │
+        ├── domain/                    # 1. REGLAS Y CONTRATOS (Python Puro, Cero PySide / Cero I/O)
+        │   ├── __init__.py
+        │   ├── entities/              # Objetos con lógica de negocio (ej. validaciones de texto)
+        │   │   ├── __init__.py
+        │   │   └── manuscript.py
+        │   ├── value_objects/         # Objetos inmutables (ej. Dimensiones A4, Márgenes)
+        │   │   ├── __init__.py
+        │   │   └── page_dimensions.py
+        │   ├── ports/                 # INTERFACES / ABCs (Definen qué requiere el sistema)
+        │   │   ├── __init__.py
+        │   │   ├── image_mapper_port.py       # Contrato para el mapeador de imágenes
+        │   │   └── document_repository_port.py # Contrato para lectura/escritura
+        │   └── exceptions.py          # Excepciones propias del dominio
+        │
+        ├── application/               # 2. CASOS DE USO / ORQUESTACIÓN (Coordina Dominio + Puertos)
+        │   ├── __init__.py
+        │   ├── use_cases/             # Acciones específicas que el usuario realiza
+        │   │   ├── __init__.py
+        │   │   ├── translate_text_use_case.py # Orquesta: Manuscript + ImageMapperPort
+        │   │   └── save_document_use_case.py  # Orquesta: Save + DocumentRepositoryPort
+        │   └── dtos/                  # Data Transfer Objects (Estructuras de datos para mover información)
+        │       ├── __init__.py
+        │       └── translation_dto.py
+        │
+        └── infrastructure/            # 3. DETALLES Y TECNOLOGÍA (Sistemas de Archivos, PySide6, etc.)
+            ├── __init__.py
+            ├── config/                # Carga de configuraciones de la app
+            │   ├── __init__.py
+            │   └── app_config.py
+            │
+            ├── services/              # SERVICIOS / ADAPTADORES (Implementan los puertos de domain/ports/)
+            │   ├── __init__.py
+            │   └── local_image_mapper.py # Implementación real: Lee el disco duro y arma el dict
+            │
+            ├── persistence/           # ADAPTADORES DE PERSISTENCIA
+            │   ├── __init__.py
+            │   ├── dtos/
+            │   │   ├── __init_.py
+            │   │   └── document_dto.py          <-- Define la estructura .json y su validación de campos
+            │   │            
+            │   └── file_document_repository.py # Implementación real de guardado en JSON/archivos
+            │
+            └── gui/                   # ADAPTADOR DE PRESENTACIÓN (PySide6)
+                ├── __init__.py
+                ├── controllers/       # Conectan las señales de PySide con los Use Cases de Application
+                │   ├── __init__.py
+                │   └── editor_controller.py
+                ├── widgets/           # Vistas y componentes visuales heredados de Qt
+                │   ├── __init__.py
+                │   └── paged_text_edit.py # Tu QTextEdit personalizado con paintEvent paginado
+                ├── windows/           # Ventana principal
+                │   ├── __init__.py
+                │   └── main_window.py # QMainWindow con setCentralWidget
+                └── resources/         # Hojas de estilo y recursos de la UI
+                    ├── styles/        # Archivos .qss
+                    └── icons/
+
+Entrada de usuario: El usuario escribe o presiona un botón en paged_text_edit.py (infrastructure/gui/widgets).
+
+Evento: La vista o el editor_controller.py capta la señal de PySide6.
+
+Ejecución: El controlador invoca el método .execute() de translate_text_use_case.py (application/use_cases).
+
+Validación: El Caso de Uso crea un manuscript.py (domain/entities) para aplicar las reglas de validación.
+
+Procesamiento del Servicio: El Caso de Uso invoca a local_image_mapper.py (infrastructure/services), el cual cumple con la interfaz de image_mapper_port.py (domain/ports) y devuelve la imagen o la ruta traducida.
+
+Respuesta a la UI: El Caso de Uso le entrega el resultado al controlador y la UI renderiza el cambio en pantalla.

@@ -1,24 +1,12 @@
 import os
 
+
 class SymbolMapper:
     def __init__(self):
-        print("On Redo Mapper")
         self._character_map = {}
         self._current_dir = "assets/default_set"
         self.load_default_set()
 
-    def get_current_directory(self) -> str:
-        return self._current_dir
-
-    def get_image_path(self, character: str) -> str:
-        return self._character_map.get(character, "")   
-
-    def has_image(self, character: str) -> bool:
-        return character in self._character_map     
-
-
-
-    ## 1. Bloque repetido
     def load_default_set(self):
         self._character_map.clear()
         base_dir = "assets/default_set"
@@ -38,6 +26,12 @@ class SymbolMapper:
                     elif filename.lower() == "space":
                         self._character_map[" "] = entry.path
 
+    def get_image_path(self, character: str) -> str:
+        return self._character_map.get(character, "")
+
+    def has_image(self, character: str) -> bool:
+        return character in self._character_map
+
     def load_from_directory(self, path: str):
         self._character_map.clear()
         self._current_dir = path
@@ -56,4 +50,5 @@ class SymbolMapper:
                         char_key = filename[0]
                         self._character_map[char_key] = entry.path
 
-    ## 1. Fin Bloque repetido
+    def get_current_directory(self) -> str:
+        return self._current_dir

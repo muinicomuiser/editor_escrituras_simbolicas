@@ -5,7 +5,6 @@ from PySide6.QtGui import (
     QInputMethodEvent,
     QTextBlockFormat,
     QTextCharFormat,
-    QTextCursor,
     QTextImageFormat,
     QTextFormat,
     QPainter,
@@ -20,9 +19,7 @@ from modules.symbol_mapper import SymbolMapper
 class EditorWidget(QTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
-        print("On Redo TextEdit")
         self.m_mapper = SymbolMapper()
-
         self.m_imageScale = 1.0
         self.m_isTextViewMode = False
 
@@ -31,53 +28,55 @@ class EditorWidget(QTextEdit):
 
         self.setAcceptRichText(True)
         self.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
-        # self.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth) ###
+        self.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth) ###
 
+        # 1. Configuración de Fuente Base
         fuente_original = self.font()
 
         fuente_original.setPointSize(40)
-        fuente_original.setFamily("Monospace")
-        # fuente_original.setFamily("DejaVu Sans Mono")
+        # fuente_original.setFamily("Monospace")
+        fuente_original.setFamily("DejaVu Sans Mono")
+        # fuente_original.setWordSpacing(24.0)
         fuente_original.setWordSpacing(32.0)
         self.setFont(fuente_original)
 
         font_metrics = QFontMetrics(self.font())
+        # print(font_metrics.size(Qt.TextSingleLine, " ").width())
         font_height = font_metrics.size(Qt.TextSingleLine, " ").height()
 
         block_format = QTextBlockFormat()
         block_format.setLineHeight(float(font_height), 2)
         cursor = self.textCursor()
         cursor.setBlockFormat(block_format)
-        self.setTextCursor(cursor)
+        self.setTextCursor(cursor)        
+        # block_format.setLineHeight(30, QTextBlockFormat.LineHeightTypes.FixedHeight)
+        # 2. Configurar documento en formato A4 (794x1123 a 96 DPI)
 
-        self.margin = 0
-        self.innerPadding = 20
+        self.margin = 40
         self.doc = self.document()
         self.doc.setPageSize(QSizeF(self.page_width, self.page_height))
+        # self.doc.setTextWidth(self.page_width)
         self.page_gap = 0
         self.applyMargin()
-        self.m_image_counter = 0
+        # root_frame = self.doc.rootFrame()
+        # if root_frame:
+        #     frame_format = root_frame.frameFormat()
+        #     frame_format.setMargin(self.margin)  # Margen interno de la página
+        #     root_frame.setFrameFormat(frame_format)
+            
 
         # 3. Estilo Visual
-        self.setStyleSheet("QTextEdit { color: #444444; }")
-        self.setFixedWidth(self.page_width + self.innerPadding * 2)
+        self.setStyleSheet("QTextEdit { background-color: #333333; color: #444444; }")
+        # self.setStyleSheet("QTextEdit { background-color: white; color: #444444; }")
+        self.setFixedWidth(self.page_width + 40)
         # self.setFixedWidth(794)
 
     def setImageScale(self, scale: float):
         if scale > 0.1:
             self.m_imageScale = scale
 
-    def setFontSize(self, fontSize: int):
-        fuente = self.font()
-        fuente.setPointSize(fontSize)
-        fuente.setWordSpacing(float(fontSize))
-        self.setFont(fuente)
-        font_metrics = QFontMetrics(self.font())
-        font_width = font_metrics.horizontalAdvance("W")
-        nueva_escala = float(font_width) / 24.0
-        self.setImageScale(nueva_escala)
-
     def keyPressEvent(self, event: QKeyEvent):
+        # Delegar controles nativos directamente si corresponde
         if self.m_isTextViewMode or event.key() in (
             Qt.Key.Key_Backspace,
             Qt.Key.Key_Delete,
@@ -100,24 +99,14 @@ class EditorWidget(QTextEdit):
             image_format.setName(self.m_mapper.get_image_path(target_char))
             image_format.setWidth(32 * self.m_imageScale)
             image_format.setHeight(32 * self.m_imageScale)
-            image_format.setVerticalAlignment(
-                QTextCharFormat.VerticalAlignment.AlignMiddle
-            )
 
-            # Llaves para las propiedades de usuario
-            user_prop_char = int(QTextFormat.Property.UserProperty) + 1
-            user_prop_id = int(QTextFormat.Property.UserProperty) + 2
-
-            # Guardamos el carácter y un ID único para evitar que Qt fusione los fragmentos
-            image_format.setProperty(user_prop_char, pressed_char)
-            image_format.setProperty(user_prop_id, self.m_image_counter)
-            self.m_image_counter += 1
+            # NOTA: En PySide6 se debe convertir el enum UserProperty a int para operaciones aritméticas
+            user_prop_key = int(QTextFormat.Property.UserProperty) + 1
+            image_format.setProperty(user_prop_key, text)
 
             cursor = self.textCursor()
-
-            formato_actual = self.currentCharFormat()
-            formato_actual.setFont(self.font())
-            cursor.setCharFormat(formato_actual)
+            formato_limpio = self.currentCharFormat()
+            cursor.setCharFormat(formato_limpio)
 
             cursor.insertImage(image_format)
             self.setTextCursor(cursor)
@@ -126,97 +115,22 @@ class EditorWidget(QTextEdit):
         super().keyPressEvent(event)
         self.update()
 
-    # def keyPressEvent(self, event: QKeyEvent):
-    #     if self.m_isTextViewMode or event.key() in (
-    #         Qt.Key.Key_Backspace,
-    #         Qt.Key.Key_Delete,
-    #         Qt.Key.Key_Return,
-    #         Qt.Key.Key_Enter,
-    #     ):
-    #         super().keyPressEvent(event)
-    #         return
-
-    #     text = event.text()
-    #     if not text:
-    #         super().keyPressEvent(event)
-    #         return
-    #     pressed_char = text[0]
-    #     target_char = pressed_char.lower()
-
-    #     if self.m_mapper.has_image(target_char):
-    #         image_format = QTextImageFormat()
-    #         image_format.setName(self.m_mapper.get_image_path(target_char))
-    #         image_format.setWidth(32 * self.m_imageScale)
-    #         image_format.setHeight(32 * self.m_imageScale)
-
-    #         user_prop_key = int(QTextFormat.Property.UserProperty) + 1
-    #         image_format.setProperty(user_prop_key, text)
-
-    #         cursor = self.textCursor()
-    #         formato_limpio = self.currentCharFormat()
-    #         cursor.setCharFormat(formato_limpio)
-
-    #         cursor.insertImage(image_format)
-    #         self.setTextCursor(cursor)
-
-    #         return
-
-    #     super().keyPressEvent(event)
-    #     self.update()
-
-    # def switchToTextView(self):
-    #     if self.m_isTextViewMode:
-    #         return
-    #     self.m_isTextViewMode = True
-
-    #     cursor = self.textCursor()
-    #     cursor_position = cursor.position()
-
-    #     self.blockSignals(True)
-    #     plain_text_accumulator = []
-
-    #     block = self.document().begin()
-    #     user_prop_key = int(QTextFormat.Property.UserProperty) + 1
-
-    #     while block.isValid():
-    #         iterator = block.begin()
-    #         while not iterator.atEnd():
-    #             fragment = iterator.fragment()
-    #             if fragment.isValid():
-    #                 char_format = fragment.charFormat()
-    #                 if char_format.isImageFormat():
-    #                     img_format = char_format.toImageFormat()
-    #                     original_char = img_format.property(user_prop_key)
-    #                     if original_char:
-    #                         plain_text_accumulator.append(str(original_char))
-    #                 else:
-    #                     plain_text_accumulator.append(fragment.text())
-    #             iterator += 1
-
-    #         block = block.next()
-    #         if block.isValid():
-    #             plain_text_accumulator.append("\n")
-
-    #     self.setPlainText("".join(plain_text_accumulator))
-    #     self.applyMargin()
-
-    #     # cursor.setPosition(cursor_position)
-    #     # self.setTextCursor(cursor)
-
-    #     self.blockSignals(False)
     def switchToTextView(self):
         if self.m_isTextViewMode:
             return
         self.m_isTextViewMode = True
 
+
         cursor = self.textCursor()
         cursor_position = cursor.position()
+
 
         self.blockSignals(True)
         plain_text_accumulator = []
 
+        # Iteración de bloques lógicos del QTextDocument
         block = self.document().begin()
-        user_prop_char = int(QTextFormat.Property.UserProperty) + 1
+        user_prop_key = int(QTextFormat.Property.UserProperty) + 1
 
         while block.isValid():
             iterator = block.begin()
@@ -226,17 +140,12 @@ class EditorWidget(QTextEdit):
                     char_format = fragment.charFormat()
                     if char_format.isImageFormat():
                         img_format = char_format.toImageFormat()
-                        original_char = img_format.property(user_prop_char)
+                        original_char = img_format.property(user_prop_key)
                         if original_char:
-                            # SOLUCIÓN: Multiplicamos el carácter por la longitud del fragmento
-                            # Si Qt llegó a fusionar fragmentos con el mismo formato, fragment.length()
-                            # nos dirá exactamente cuántas imágenes seguidas hay en este bloque.
-                            plain_text_accumulator.append(
-                                str(original_char) * fragment.length()
-                            )
+                            plain_text_accumulator.append(str(original_char))
                     else:
                         plain_text_accumulator.append(fragment.text())
-                iterator += 1
+                iterator += 1  # Operador de incremento mapeado en PySide6
 
             block = block.next()
             if block.isValid():
@@ -248,26 +157,8 @@ class EditorWidget(QTextEdit):
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
 
-        font_metrics = QFontMetrics(self.font())
-        font_height = font_metrics.size(Qt.TextFlag.TextSingleLine, " ").height()
-
-        block_format = QTextBlockFormat()
-        # Forzar a que la altura de línea sea fija e idéntica en ambos modos
-        block_format.setLineHeight(
-            float(font_height), QTextBlockFormat.LineHeightTypes.FixedHeight.value
-        )
-
-        # Aplicar el formato a todos los bloques del documento actual de golpe
-        cursor_global = self.textCursor()
-        cursor_global.select(QTextCursor.SelectionType.Document)
-        cursor_global.mergeBlockFormat(block_format)
-
         self.blockSignals(False)
-
-    # Método creado, por revisar
-    def setContent(self, plain_text_content: str):
-        self.clear()
-        self.setPlainText(plain_text_content)
+        
 
     def switchToImageView(self):
 
@@ -277,13 +168,14 @@ class EditorWidget(QTextEdit):
         self.blockSignals(True)
 
         cursor = self.textCursor()
-        cursor_position = cursor.position()
+        cursor_position = cursor.position()        
 
         current_text = self.toPlainText()
         self.clear()
 
         cursor = self.textCursor()
 
+        # Mapa de filtrado de acentos y caracteres especiales
         tildes = {
             "á": "a",
             "Á": "a",
@@ -317,34 +209,16 @@ class EditorWidget(QTextEdit):
                 base_size = 32
                 image_format.setWidth(base_size * self.m_imageScale)
                 image_format.setHeight(base_size * self.m_imageScale)
-                image_format.setVerticalAlignment(
-                    QTextCharFormat.VerticalAlignment.AlignMiddle
-                )
                 image_format.setProperty(user_prop_key, char)
 
-                formato_actual = self.currentCharFormat()
-                formato_actual.setFont(self.font())
-                cursor.setCharFormat(formato_actual)
                 cursor.insertImage(image_format)
             else:
                 cursor.insertText(char)
+
         self.applyMargin()
 
-        # cursor.setPosition(cursor_position)
-        # self.setTextCursor(cursor)
-        font_metrics = QFontMetrics(self.font())
-        font_height = font_metrics.size(Qt.TextFlag.TextSingleLine, " ").height()
-
-        block_format = QTextBlockFormat()
-        # Forzar a que la altura de línea sea fija e idéntica en ambos modos
-        block_format.setLineHeight(
-            float(font_height), QTextBlockFormat.LineHeightTypes.FixedHeight.value
-        )
-
-        # Aplicar el formato a todos los bloques del documento actual de golpe
-        cursor_global = self.textCursor()
-        cursor_global.select(QTextCursor.SelectionType.Document)
-        cursor_global.mergeBlockFormat(block_format)
+        cursor.setPosition(cursor_position)
+        self.setTextCursor(cursor)
 
         self.blockSignals(False)
 
@@ -354,7 +228,6 @@ class EditorWidget(QTextEdit):
             return
 
         commit_text = event.commitString()
-        commit_text = event.preeditString()
         if commit_text:
             pressed_char = commit_text[0]
 
@@ -375,18 +248,16 @@ class EditorWidget(QTextEdit):
                 "Ñ": "ñ",
             }
             target_char = tildes.get(pressed_char, pressed_char).lower()
+
             if self.m_mapper.has_image(target_char):
                 image_format = QTextImageFormat()
                 image_format.setName(self.m_mapper.get_image_path(target_char))
                 image_format.setWidth(32 * self.m_imageScale)
                 image_format.setHeight(32 * self.m_imageScale)
-                image_format.setVerticalAlignment(
-                    QTextCharFormat.VerticalAlignment.AlignMiddle
-                )
+                image_format.setVerticalAlignment(QTextCharFormat.VerticalAlignment.AlignMiddle)
 
                 user_prop_key = int(QTextFormat.Property.UserProperty) + 1
-                # image_format.setProperty(user_prop_key, commit_text)
-                image_format.setProperty(user_prop_key, pressed_char)
+                image_format.setProperty(user_prop_key, commit_text)
 
                 cursor = self.textCursor()
                 formato_limpio = self.currentCharFormat()
@@ -410,41 +281,78 @@ class EditorWidget(QTextEdit):
     def getAssetsDirectory(self) -> str:
         return self.m_mapper.get_current_directory()
 
+    # def paintEvent(self, event):
+    #     super().paintEvent(event)
+
+    #     painter = QPainter(self.viewport())
+    #     painter.setPen(QPen(QColor("#555555"), 2, Qt.PenStyle.DashLine))
+
+    #     page_height = int(self.document().pageSize().height())
+    #     if page_height <= 0:
+    #         page_height = 1123
+
+    #     total_height = int(self.document().size().height())
+    #     scroll_y = self.verticalScrollBar().value()
+
+    #     # Dibujado dinámico de líneas discontinuas en los quiebres de página físicos
+    #     for y in range(page_height, total_height, page_height):
+    #         visual_y = y - scroll_y
+    #         if 0 <= visual_y <= self.viewport().height():
+    #             painter.drawLine(0, visual_y, self.viewport().width(), visual_y)
+
     def applyMargin(self):
         root_frame = self.doc.rootFrame()
-        padding = self.innerPadding
         if root_frame:
             frame_format = root_frame.frameFormat()
-            frame_format.setLeftMargin(self.margin + padding)
-            frame_format.setRightMargin(self.margin - padding)
+            # frame_format.setMargin(margin)  # Margen interno de la página
+            frame_format.setLeftMargin(self.margin)
+            frame_format.setRightMargin(self.margin)
             frame_format.setTopMargin(self.margin)
-            frame_format.setBottomMargin(self.margin)
+            frame_format.setBottomMargin(self.margin)            
+
             root_frame.setFrameFormat(frame_format)
 
     def paintEvent(self, event):
 
         doc = self.document()
         if doc.pageSize() != QSizeF(self.page_width, self.page_height):
-            doc.setPageSize(QSizeF(self.page_width, self.page_height))
+            doc.setPageSize(QSizeF(self.page_width, self.page_height))    
 
+        # self.applyMargin()
+        # layout = doc.documentLayout()
+        # if layout:
+        #     # Esto obliga a Qt a dividir los bloques en páginas físicas
+        #     layout.p(QSizeF(self.page_width, self.page_height))                
+        # """Sobrescribimos el evento de pintado para dibujar las hojas de papel."""
         painter = QPainter(self.viewport())
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        doc = self.document()
         page_count = doc.pageCount()
 
+        # Posición del scroll actual
         scroll_y = self.verticalScrollBar().value()
-
+        
+        # Centrar la hoja horizontalmente en el viewport
         viewport_width = self.viewport().width()
-        x_offset = (viewport_width - self.page_width) // 2
+        x_offset = max(20, (viewport_width - self.page_width) // 2)
 
+        # 3. Dibujar cada hoja de papel antes de renderizar el texto
         for i in range(page_count):
             page_top = i * (self.page_height + self.page_gap) + self.page_gap - scroll_y
             page_rect = QRectF(x_offset, page_top, self.page_width, self.page_height)
 
+            # Dibujar sombra ligera detrás de la página
+            # shadow_rect = page_rect.translated(3, 3)
+            # painter.fillRect(shadow_rect, QColor("#b0b0b0"))
+
+            # Dibujar la hoja de papel blanca
             painter.fillRect(page_rect, Qt.GlobalColor.white)
+            # print(f"{i}: {page_top}")
             painter.setPen(QPen(QColor("#cccccc"), 2))
             painter.drawRect(page_rect)
 
         painter.end()
 
+        # 4. Dejar que QTextEdit pinte el texto y el cursor nativo por encima
         super().paintEvent(event)
