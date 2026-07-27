@@ -1,17 +1,27 @@
+import signal
 import sys
+import os
 from PySide6.QtWidgets import QApplication
 from modules.config.config import load_config
 from modules.main_window import MainWindow
 
 
 def main():
+
+    ### Anotación 1: Por refinar esta parte
+    ## Forzar a usar un servidor gráfico específico (tengo problemas en linux por procesos que quedan abiertos, creo, y wayland es más estricto)
+    os.environ["QT_QPA_PLATFORM"] = "xcb"
+    ### Fin Anotación 1
+
     app = QApplication(sys.argv)
+
+    signal.signal(
+        signal.SIGINT, signal.SIG_DFL
+    )  # Habilitar la detección de señales de cierre
 
     config = load_config()
 
     main_window = MainWindow(config)
-    # main_window.setWindowTitle("Editor de Texto con Imágenes")
-    # main_window.resize(1024, 768)
     main_window.show()
     sys.exit(app.exec())
 
