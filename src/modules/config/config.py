@@ -14,5 +14,4 @@ class Config:
 
 def load_config():
     config = Config()
-    print("On Redo - Config")
     return config
