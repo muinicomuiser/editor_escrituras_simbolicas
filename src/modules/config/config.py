@@ -1,6 +1,3 @@
-from modules.enum.paper_sizes import PaperSizes
-
-
 class Config:
     WIDTH, HEIGHT = 1024, 768
     ASSETS_DIR = "assets"

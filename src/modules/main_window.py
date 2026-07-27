@@ -4,7 +4,6 @@ import textwrap
 from PySide6.QtWidgets import (
     QComboBox,
     QMainWindow,
-    QStyle,
     QWidget,
     QHBoxLayout,
     QToolBar,
@@ -14,7 +13,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import (
     QAction,
-    QIcon,
     QKeySequence,
     QPageSize,
     QPdfWriter,
