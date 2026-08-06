@@ -4,6 +4,7 @@ from PySide6.QtGui import (
     QFontMetrics,
     QKeyEvent,
     QInputMethodEvent,
+    QFontDatabase,
     QPixmap,
     QTextBlockFormat,
     QTextCharFormat,
@@ -33,7 +34,6 @@ class EditorWidget(QTextEdit):
 
         self.m_imageScale = 1.0
         self._init_font_size = 40
-        self._font_family = "Monospace"
 
         self.m_isTextViewMode = False
 
@@ -43,9 +43,9 @@ class EditorWidget(QTextEdit):
         self.setLineWrapColumnOrWidth(self.page_width)
 
 
-        fuente_original = self.font()
+        ## Monospace cross platform
+        fuente_original = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
         fuente_original.setPointSize(self._init_font_size)
-        fuente_original.setFamily(self._font_family)
         fuente_original.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 140)
         self.setFont(fuente_original)
 
