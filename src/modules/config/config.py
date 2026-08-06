@@ -1,5 +1,5 @@
 class Config:
-    WIDTH, HEIGHT = 1024, 768
+    WIDTH, HEIGHT = 768, 1024
     ASSETS_DIR = "assets"
     DEFAULT_ASSETS_DIR = "default_set"
     APP_VERSION = "0.1.1"

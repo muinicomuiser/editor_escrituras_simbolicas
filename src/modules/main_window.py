@@ -32,6 +32,7 @@ class MainWindow(QMainWindow):
     def __init__(self, config: Config, parent=None):
         super().__init__(parent)
         self.config = config
+
         
         self.setWindowTitle(self.config.MAIN_WINDOW_TITLE)
         self.resize(self.config.WIDTH, self.config.HEIGHT)
@@ -39,6 +40,7 @@ class MainWindow(QMainWindow):
         # Contenedor central
         self.container = QWidget(self)
         self.setCentralWidget(self.container)
+        self.container.setObjectName("MainWidget")
         self.main_layout = QHBoxLayout(self.container)
 
 
@@ -47,30 +49,53 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(self._editor)
         self.main_layout.setAlignment(self._editor, Qt.AlignmentFlag.AlignHCenter)
         self.main_layout.setContentsMargins(0, 20, 0, 20)
+        self._editor.setObjectName("Editor")
+
 
         # Dependencia de persistencia
         self.file_manager = FileManager()
         self._editor.textChanged.connect(
             self.file_manager.set_to_unsaved
-        )  # Conecta señales entre componentes (al detectar un cambio se llama al método de file_manager)
+        )
 
-        # self.__init_toolbar()
-        # 1. Crear comandos de usuario (QActions)
+        # comandos de usuario (QActions)
         self._create_actions()
 
-        # 2. Ensamblar la barra de herramientas
+        # barra de herramientas
         self._create_toolbar()
 
-        # 3. Ensamblar el menú superior
+        # menú superior
         self._create_menu_bar()
+
+
+        # self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        # self.setAttribute(Qt.WA_TranslucentBackground)
+        # self.setStyleSheet("""
+        #     QMainWindow {
+        #     }
+        #     #Editor {
+        #     }
+        #     QLabel {
+        #         color: #ffffff;
+        #         font-size: 16px;
+        #         font-family: 'Segoe UI', Arial, sans-serif;
+        #         font-weight: bold;
+        #     }
+        #     QToolBar {
+        #         color: #ffffff;
+        #         font-size: 16px;
+        #         font-family: 'Segoe UI', Arial, sans-serif;
+        #         font-weight: bold;
+        #     }
+        #     """)
 
     def onToggleViewChanged(self, checked: bool): # CHECK
 
         if checked:
-            self._toggleViewAction.setText("Modo Imágenes")
+            self._toggleViewAction.setText("Modo Texto")
             self._editor.switchToTextView()
         else:
-            self._toggleViewAction.setText("Modo Texto")
+            self._toggleViewAction.setText("Modo Símbolos")
             self._editor.switchToImageView()
 
     ## TODO: Agregar una función que rerenderice las imágenes, sin tener que pasar a texto y a imagen nuevamente
@@ -262,7 +287,7 @@ class MainWindow(QMainWindow):
             QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
         )
         if directory:
-            self._editor.changeAssetsDirectory(directory)
+            self._editor.setAssetsDirectory(directory)
             QMessageBox.information(
                 self, "Set Cambiado", f"Se han cargado los símbolos desde: {directory}"
             )
@@ -275,13 +300,13 @@ class MainWindow(QMainWindow):
             "Instrucciones", 
             textwrap.dedent("""
             <b>Elegir símbolos</b><br>
-            1. Presiona 'Cambiar Set'.<br>
+            1. Presiona 'Elegir Símbolos'.<br>
             2. Elige la carpeta donde tienes tus imágenes.<br>
             * Cada imagen debe tener como nombre la letra que representa en minúscula. Por ejemplo 'a.png', 'b.jpg'.<br>
             <br>
             <b>Cambiar modo de vista</b><br>
 
-            Presiona el botón 'Modo Texto' o 'Modo Imagen' para cambiar el modo en que se muestran los símbolos en la hoja.<br>
+            Presiona el botón 'Modo Texto' o 'Modo Símbolos' para cambiar el modo en que se muestran los símbolos en la hoja.<br>
             """)
         )
     def _create_actions(self):
@@ -290,7 +315,6 @@ class MainWindow(QMainWindow):
         self._openAction = QAction("Abrir...", self)
         self._openAction.setShortcut(QKeySequence.StandardKey.Open)
         self._openAction.triggered.connect(self.onOpenFile)
-
         # Guardar / Guardar como
         self._saveAction = QAction("Guardar", self)
         self._saveAction.setShortcut(QKeySequence.StandardKey.Save)
@@ -306,9 +330,9 @@ class MainWindow(QMainWindow):
         self._exportImageAction.triggered.connect(self.onExportImage)
 
         # Configuración / Vistas
-        self._changeDirAction = QAction("Cambiar Set", self)
+        self._changeDirAction = QAction("Elegir Símbolos", self)
         self._changeDirAction.triggered.connect(self.onChangeDirectory)
-        self._toggleViewAction = QAction("Modo Texto", self)
+        self._toggleViewAction = QAction("Modo Símbolos", self)
         self._toggleViewAction.setCheckable(True)
         self._toggleViewAction.toggled.connect(self.onToggleViewChanged)
 

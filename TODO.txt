@@ -2,12 +2,18 @@ Tests:
 - Probar con assets a los que le falten letras.
 - Probar con assets de distintos tamaños.
 
-Correciones:
+Correcciones:
 - Posición del curso al cambiar de vista
 - La fuente base es más alta que ancha, que las imágenes se ajusten al alto y las letras ocupen un espacio cuadrado según su dimensión mayor. Las imágenes quedan
 muy pequeñas comparadas con las fuentes
+- Reorganizar todo el editor en subclases
+- Optimizar el cargado y recargado de imágenes. Se revienta un poco la cpu al pasar de texto a imagen, siempre.
 
 Futuras mejoras:
 - Lógica de Editor / _insert_symbol_image, que se pueda importar el set de imágenes en un formato conveniente para insertarlos en la hoja. El usuario podría
 tener una pequeña interfaz que le permita importar un conjunto de imágenes (podría incluso seleccionar qué imagen quiere para cada letra), y la aplicación
-adaptaría el conjunto de imágenes a un formato estandar, que sería el que usaría al insertar las imágenes en el documento. Esa lógica podría ser parte del mapper
+adaptaría el conjunto de imágenes a un formato estandar, que sería el que usaría al insertar las imágenes en el documento. Esa lógica podría ser parte del mapper.
+- Agregar about
+- Que al importar las imágenes, se recorte el tamaño hasta abarcar solo la parte visible de los archivos png
+- Que pueda tomar imágenes nombradas con letras mayúsculas (A.png)
+- Mapear CH y LL

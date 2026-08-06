@@ -5,14 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "pillow==12.3.0",
     "pydantic==2.13.4",
-    "pyside6==6.11.1",
+    "PySide6==6.11.1",
 ]
 
 [dependency-groups]
 dev = [
     "black==26.5.1",
     "poethepoet>=0.48.0",
+    "pyinstaller==6.21.0",
     "pytest==8.1.1",
     "ruff==0.3.4",
 ]

@@ -16,71 +16,7 @@ class PixelChatWindow(QMainWindow):
         # Para arrastrar la ventana
         self.old_pos = None
 
-        # 2. Estilo CSS global (Estilo Pixel Art Retro)
-        # Se corrigió el selector del marco principal quitando el espacio intermedio (QWidget#MainFrame)
-        self.setStyleSheet("""
-            QWidget#MainFrame {
-                background-color: #1a1a24;
-                border: 4px solid #3d3d52;
-                border-radius: 0px;
-            }
-            QLabel#TitleBar {
-                background-color: #2c2c3e;
-                color: #ffcc00;
-                font-family: 'Courier New', monospace;
-                font-weight: bold;
-                font-size: 14px;
-                padding: 5px;
-            }
-            QTextEdit {
-                background-color: #0f0f14;
-                color: #00ffcc;
-                font-family: 'Courier New', monospace;
-                font-size: 13px;
-                border: 2px solid #3d3d52;
-                padding: 8px;
-            }
-            QLineEdit {
-                background-color: #0f0f14;
-                color: #ffffff;
-                font-family: 'Courier New', monospace;
-                font-size: 13px;
-                border: 2px solid #3d3d52;
-                padding: 5px;
-            }
-            #SendButton {
-                background-color: #ff0055;
-                color: white;
-                font-family: 'Courier New', monospace;
-                font-weight: bold;
-                font-size: 12px;
-                border: 2px solid #3d3d52;
-                padding: 5px 10px;
-            }
-            #SendButton:hover {
-                background-color: #ff3377;
-            }
-            #SendButton:pressed {
-                background-color: #cc0044;
-                padding-top: 7px;
-            }
-            #Close {
-                background-color: #ff0055;
-                color: white;
-                font-family: 'Courier New', monospace;
-                font-weight: bold;
-                font-size: 12px;
-                border: 2px solid #3d3d52;
-                padding: 2px 10px;
-                height: 20px;
-            }
-            #Close:hover {
-                background-color: #ff3377;
-            }
-            #Close:pressed {
-                background-color: #cc0044;
-            }
-        """)
+
 
         # 3. Construcción de la Interfaz
         main_widget = QWidget()
@@ -93,9 +29,10 @@ class PixelChatWindow(QMainWindow):
 
         # --- NUEVA ESTRUCTURA: Barra de título superior horizontal ---
         header_container = QWidget()
-        header_container.setStyleSheet("background-color: #2c2c3e; border-bottom: 4px solid #3d3d52;")
+        header_container.setObjectName("HeaderContainer")
+        # header_container.setStyleSheet("background-color: #2c2c3e; border-bottom: 4px solid #3d3d52;")
         header_layout = QHBoxLayout(header_container)
-        header_layout.setContentsMargins(5, 0, 5, 0)
+        header_layout.setContentsMargins(4, 4, 4, 4)
         header_layout.setSpacing(0)
 
         # Etiqueta del título
@@ -201,6 +138,10 @@ class PixelChatWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    with open("referencias/pixel_app.bygemini.qss", "r") as f:
+        _style = f.read()
+    app.setStyleSheet(_style)
+
     window = PixelChatWindow()
     window.show()
     sys.exit(app.exec())

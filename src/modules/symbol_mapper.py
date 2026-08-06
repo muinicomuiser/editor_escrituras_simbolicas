@@ -1,9 +1,11 @@
 import os
+import sys
 
 class SymbolMapper:
     def __init__(self):
         self._character_map = {}
-        self._current_dir = "assets/default_set"
+        self._default_symbols_dir = os.path.join(getattr(sys, '_MEIPASS', os.path.abspath(".")), "simbolos")
+        self._current_dir = os.path.join(self._default_symbols_dir, "ejemplo")
         self._valid_extensions = {".png", ".jpg", ".jpeg"}
         self.load_from_directory(self._current_dir)
 
@@ -32,4 +34,3 @@ class SymbolMapper:
                         self._character_map[char_key] = entry.path
                     elif filename.lower() == "space": 
                         self._character_map[" "] = entry.path
-
