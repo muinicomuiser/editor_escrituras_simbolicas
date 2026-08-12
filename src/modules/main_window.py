@@ -26,6 +26,7 @@ from modules.config.config import Config
 from modules.editor_widget import EditorWidget
 from modules.persistence.file_manager import FileManager
 from modules.shared.models.project_model import ProjectModel
+from modules.symbol_selector_widget import SymbolSelectorWindow
 
 
 class MainWindow(QMainWindow):
@@ -57,6 +58,9 @@ class MainWindow(QMainWindow):
         self._editor.textChanged.connect(
             self.file_manager.set_to_unsaved
         )
+
+        # Prueba de ventana de drag y drop
+        self._symbol_collection_editor = None
 
         # comandos de usuario (QActions)
         self._create_actions()
@@ -279,6 +283,45 @@ class MainWindow(QMainWindow):
             self, "Éxito", f"Se han exportado {total_pages} imágenes individuales."
         )
 
+    ##
+    ## Acá veré cómo funciona lo del drag
+    ##
+    def _open_symbols_window(self):
+        if self._symbol_collection_editor is None:
+            self._symbol_collection_editor = SymbolSelectorWindow(self)
+            self._symbol_collection_editor.show()
+            self._symbol_collection_editor.destroyed.connect(self._on_destroyed_symbol_selector)
+    def _on_destroyed_symbol_selector(self):
+        self._symbol_collection_editor = None
+    ##
+    ## Hasta acá vi cómo funciona lo del drag
+    ##
+
+    def onChangeSymbols(self):
+
+        files = QFileDialog.getOpenFileNames(
+            self,
+            "Selecciona los símbolos",
+            self._editor.getAssetsDirectory()
+        )
+        if files:
+            print(files)
+            dir = os.path.dirname(files[0][0])
+            print(dir)
+        else:
+            return
+        # directory = QFileDialog.getExistingDirectory(
+        #     self,
+        #     "Seleccionar Directorio de Símbolos",
+        #     self._editor.getAssetsDirectory(),
+        #     QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+        # )
+        # if directory:
+        #     self._editor.setAssetsDirectory(directory)
+        #     QMessageBox.information(
+        #         self, "Set Cambiado", f"Se han cargado los símbolos desde: {directory}"
+        #     )
+
     def onChangeDirectory(self):
         directory = QFileDialog.getExistingDirectory(
             self,
@@ -309,6 +352,8 @@ class MainWindow(QMainWindow):
             Presiona el botón 'Modo Texto' o 'Modo Símbolos' para cambiar el modo en que se muestran los símbolos en la hoja.<br>
             """)
         )
+
+    
     def _create_actions(self):
 
         # Abrir
@@ -331,7 +376,11 @@ class MainWindow(QMainWindow):
 
         # Configuración / Vistas
         self._changeDirAction = QAction("Elegir Símbolos", self)
-        self._changeDirAction.triggered.connect(self.onChangeDirectory)
+        self._changeDirAction.triggered.connect(self._open_symbols_window)
+        # self._changeDirAction.triggered.connect(self.onChangeSymbols)
+        # self._changeDirAction.triggered.connect(self.onChangeDirectory)
+
+
         self._toggleViewAction = QAction("Modo Símbolos", self)
         self._toggleViewAction.setCheckable(True)
         self._toggleViewAction.toggled.connect(self.onToggleViewChanged)
