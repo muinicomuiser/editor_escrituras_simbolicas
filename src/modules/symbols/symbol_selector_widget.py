@@ -101,7 +101,6 @@ class SymbolSelectorWindow(QMainWindow):
         self._symbol_mapper.clear_map()
         for char, surface in self._drop_surfaces.items():
             self._symbol_mapper.set_pixmap(char, surface.pixmap)
-            # self._symbol_mapper.set_pixmap(char, copy(surface.pixmap))
 
 
     def _load_collections_list(self):

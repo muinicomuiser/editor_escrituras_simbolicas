@@ -14,7 +14,7 @@ class SymbolsCollectionFileManager:
         self._saved = False
         self._current_filename = None
         self._file_extension = "json"
-        self._collections_persistence_dir = os.path.join(getattr(sys, '_MEIPASS', os.path.abspath(".")), "simbolos")
+        self._collections_persistence_dir = os.path.join(getattr(sys, '_MEIPASS', os.path.abspath(".")), "data/simbolos")
         self.collections_persistence_file = os.path.join(self._collections_persistence_dir, "symbol_collections.json")      
         self._setup_collection_file() 
 
@@ -67,7 +67,7 @@ class SymbolsCollectionFileManager:
         dir_path = Path(self._collections_persistence_dir)
         file_path = Path(self.collections_persistence_file)
         if not dir_path.is_dir():
-            Path(self._collections_persistence_dir).mkdir(exist_ok=True)
+            Path(self._collections_persistence_dir).mkdir(exist_ok=True, parents=True)
         if not file_path.exists():
             payload = {
                 "collections": []

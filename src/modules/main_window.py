@@ -450,8 +450,9 @@ class MainWindow(QMainWindow):
             "1", "2", "4", "6", "8", "10", "12", "14", "18", "22", "24",
             "28", "32", "36", "40", "44", "48", "52", "56", "60", "66", "72", "80", "88", "96"
         ]
+        init_size = "60"
         box.addItems(sizes)
-        box.setCurrentText("40")
+        box.setCurrentText(init_size)
         box.setEditable(True)
         box.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         

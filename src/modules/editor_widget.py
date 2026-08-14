@@ -33,7 +33,7 @@ class EditorWidget(QTextEdit):
         self.page_width = self.config.WIDTH
 
         self.m_imageScale = 1.0
-        self._init_font_size = 40
+        self._init_font_size = 60
 
         self.m_isTextViewMode = False
 
