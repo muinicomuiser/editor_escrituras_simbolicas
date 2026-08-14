@@ -8,7 +8,10 @@ class Config:
     # PROJECT_ROOT = Path(sys.argv[0]).resolve().parent.parent
     # ASSETS_PATH = PROJECT_ROOT / ASSETS_DIR
 
-    CHARACTERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "ñ", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
+    CHARACTERS = {
+            "single": list("abcdefghijklmnñopqrstuvwxyz"),
+            "compound": ["ch", "ll"]
+        }
 
 def load_config():
     config = Config()

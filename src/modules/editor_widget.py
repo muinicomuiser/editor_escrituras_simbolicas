@@ -19,15 +19,15 @@ from PySide6.QtGui import (
 )
 from PySide6.QtCore import QRectF, QUrl, Qt, QSizeF
 from modules.config.config import Config
-from modules.symbol_mapper import SymbolMapper
+from modules.symbols.symbol_mapper import SymbolMapper
 
 
 class EditorWidget(QTextEdit):
-    def __init__(self, config: Config, parent=None):
+    def __init__(self, config: Config, symbol_mapper: SymbolMapper, parent=None):
         super().__init__(parent)
         self.config = config
 
-        self.m_mapper = SymbolMapper()
+        self._symbol_mapper = symbol_mapper
 
         self.page_height = self.config.HEIGHT
         self.page_width = self.config.WIDTH
@@ -101,14 +101,14 @@ class EditorWidget(QTextEdit):
 
     def setAssetsDirectory(self, path: str): ## Revisar
     
-        self.m_mapper.load_from_directory(path)
+        self._symbol_mapper.load_from_directory(path)
 
         if not self.m_isTextViewMode and not self.document().isEmpty():
             self.switchToTextView()
             self.switchToImageView()
 
     def getAssetsDirectory(self) -> str:
-        return self.m_mapper.get_current_directory()
+        return self._symbol_mapper.get_current_directory()
 
     def _to_clean_char(self, char: str):
         tildes = {
@@ -130,7 +130,7 @@ class EditorWidget(QTextEdit):
         return tildes.get(char, char).lower()
 
     def _insert_symbol_image(self, original_char: str, target_char: str):
-        if not self.m_mapper.has_image(target_char):
+        if not self._symbol_mapper.has_image(target_char):
             return False
 
         font_metrics = QFontMetrics(self.font())
@@ -144,11 +144,13 @@ class EditorWidget(QTextEdit):
         resource_url = QUrl(resource_id)
 
         doc = self.document()
-
+        
         if not doc.resource(QTextDocument.ResourceType.ImageResource, resource_url):
             
-            image_path = self.m_mapper.get_image_path(target_char)
-            original_pixmap = QPixmap(image_path)
+            original_pixmap = self._symbol_mapper.get_pixmap(target_char)
+            # original_pixmap = QPixmap(image_path)
+            # image_path = self._symbol_mapper.get_image_path(target_char)
+            # original_pixmap = QPixmap(image_path)
             scaled_pixmap = original_pixmap.scaled(
                 char_width,
                 char_height,
@@ -317,7 +319,7 @@ class EditorWidget(QTextEdit):
                 continue
 
             target_char = self._to_clean_char(char)
-            if not self.m_mapper.has_image(target_char):
+            if not self._symbol_mapper.has_image(target_char):
                 cursor.insertText(char)
             self._insert_symbol_image(char, target_char)
 
@@ -372,10 +374,10 @@ class EditorWidget(QTextEdit):
     # def _insert_image(self, pressed_char: str, target_char: str):
     ## Requiere definir una escala, o manejar dinámicamente la escala de las imágenes
 
-    #     if not self.m_mapper.has_image(target_char):
+    #     if not self._symbol_mapper.has_image(target_char):
     #         return False
     #     image_format = QTextImageFormat()
-    #     image_format.setName(self.m_mapper.get_image_path(target_char))
+    #     image_format.setName(self._symbol_mapper.get_image_path(target_char))
     #     image_format.setWidth(32 * self.m_imageScale)
     #     image_format.setHeight(32 * self.m_imageScale)
     #     image_format.setVerticalAlignment(

@@ -26,8 +26,8 @@ from modules.config.config import Config
 from modules.editor_widget import EditorWidget
 from modules.persistence.file_manager import FileManager
 from modules.shared.models.project_model import ProjectModel
-from modules.symbol_selector_widget import SymbolSelectorWindow
-
+from modules.symbols.symbol_selector_widget import SymbolSelectorWindow
+from modules.symbols.symbol_mapper import SymbolMapper
 
 class MainWindow(QMainWindow):
     def __init__(self, config: Config, parent=None):
@@ -44,9 +44,11 @@ class MainWindow(QMainWindow):
         self.container.setObjectName("MainWidget")
         self.main_layout = QHBoxLayout(self.container)
 
+        # Symbol Mapper para inyectar en editor y ventana de colecciones
+        self._symbol_mapper = SymbolMapper()        
 
         # Editor
-        self._editor = EditorWidget(self.config, self)
+        self._editor = EditorWidget(self.config, self._symbol_mapper, self)
         self.main_layout.addWidget(self._editor)
         self.main_layout.setAlignment(self._editor, Qt.AlignmentFlag.AlignHCenter)
         self.main_layout.setContentsMargins(0, 20, 0, 20)
@@ -119,6 +121,21 @@ class MainWindow(QMainWindow):
                 self._editor.switchToTextView()  # Está usando este método para pintar la nueva escala???
                 self._editor.switchToImageView()
         self._editor.setFocus()
+
+    def onSymbolsChanged(self):
+        if not self._toggleViewAction.isChecked():
+            self._editor.switchToTextView()  # Está usando este método para pintar la nueva escala???
+            self._editor.switchToImageView()        
+
+
+    ## Repasar.
+    ## Acá también debería iniciarse el editor de colección de símbolos
+    ## Aunque no se abra la ventana ni se actualicen las imágenes
+    ## sí debería crearse la instancia del editor de colecciones, con las superficies y sus pixmaps
+    ## Que el botón de abrir cree el editor de símbolos
+    ## Que el botón de elegir simbolos tenga tres caminos:
+    ## Crear si no se ha abierto ningún archivo (en blanco)
+    ## Hacer update y show si se ha abierto un archivo con una colección elegida 
 
     def onOpenFile(self):  ## CHECK (Solo falta revisar el paso de los switchs)
 
@@ -288,9 +305,12 @@ class MainWindow(QMainWindow):
     ##
     def _open_symbols_window(self):
         if self._symbol_collection_editor is None:
-            self._symbol_collection_editor = SymbolSelectorWindow(self)
+            self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self)
+            self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)
             self._symbol_collection_editor.show()
-            self._symbol_collection_editor.destroyed.connect(self._on_destroyed_symbol_selector)
+        else:
+            self._symbol_collection_editor.show()
+            # self._symbol_collection_editor.destroyed.connect(self._on_destroyed_symbol_selector)
     def _on_destroyed_symbol_selector(self):
         self._symbol_collection_editor = None
     ##
@@ -299,6 +319,7 @@ class MainWindow(QMainWindow):
 
     def onChangeSymbols(self):
 
+  
         files = QFileDialog.getOpenFileNames(
             self,
             "Selecciona los símbolos",
@@ -310,6 +331,8 @@ class MainWindow(QMainWindow):
             print(dir)
         else:
             return
+
+        
         # directory = QFileDialog.getExistingDirectory(
         #     self,
         #     "Seleccionar Directorio de Símbolos",
