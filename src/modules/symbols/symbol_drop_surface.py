@@ -1,21 +1,19 @@
-import os
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QDropEvent, QPaintEvent, QPainter, QPixmap
 from PIL import Image, ImageQt
 
 class SymbolDropSurface(QWidget):
     image_dropped = Signal(str, bool)
-    def __init__(self, parent=None, symbol_name = None):
+    def __init__(self, parent=None, symbol_name: str = None):
         super().__init__(parent)
         self.symbol_name = symbol_name
         self.setAcceptDrops(True)
         self.pixmap = QPixmap()  
 
         self._valid_extensions = {".png", ".jpg", ".jpeg"}              
-
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
     # Evento de entrada de un elemento al área. De este evento depende dropEvent, porque le da una validación previa.
@@ -31,6 +29,9 @@ class SymbolDropSurface(QWidget):
             event.acceptProposedAction()
         return super().dragEnterEvent(event)        
 
+    def has_symbol(self):
+        return not self.pixmap.isNull()
+
     # Evento que se dispara cada vez que el mouse se mueve dentro del área, por cada pixel.
     # No es necesario para mi caso    
     # def dragMoveEvent(self, event: QDropEvent):
@@ -44,6 +45,19 @@ class SymbolDropSurface(QWidget):
             self.set_image(image_path, is_saved=False)
             event.accept()            
 
+    def clear(self):
+        self.pixmap = QPixmap()
+        self.update()
+
+    ## WIP
+    def save_to_file(self, symbol_dir_path: Path):
+        if not self.pixmap.isNull():      
+            filename =  f"{self.symbol_name}{Path(self.image_path).suffix.lower()}"
+            image_path = symbol_dir_path.joinpath(filename)
+            saved = self.pixmap.save(str(image_path))
+            if saved:
+                self.image_path = image_path
+
     def set_image(self, image_path: str, is_saved: bool = False, drop: bool = True):
 
         pixmap = QPixmap(image_path)
@@ -56,8 +70,9 @@ class SymbolDropSurface(QWidget):
                         pixmap = ImageQt.toqpixmap(cropped)
             self.pixmap = pixmap
             self.image_path = str(image_path)
-            self.update()
             self.image_dropped.emit(self.image_path, is_saved)
+            self.update()
+        
 
     def paintEvent(self, event: QPaintEvent):
         painter = QPainter(self)

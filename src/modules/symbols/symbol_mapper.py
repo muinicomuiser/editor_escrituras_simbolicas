@@ -1,13 +1,13 @@
 import os
-import sys
-
 from PySide6.QtGui import QPixmap
+from modules.shared.models.symbol_collection_model import SymbolCollectionModel
 
 class SymbolMapper:
     def __init__(self):
         self._character_map = {} ## {char: pixmap}
-        self._default_symbols_dir = os.path.join(getattr(sys, '_MEIPASS', os.path.abspath(".")), "simbolos")
-        self._current_dir = os.path.join(self._default_symbols_dir, "ejemplo")
+        # self._current_collection: SymbolCollectionModel = None
+        # self._default_symbols_dir = os.path.join(getattr(sys, '_MEIPASS', os.path.abspath(".")), "simbolos")
+        # self._current_dir = os.path.join(self._default_symbols_dir, "ejemplo")
         self._valid_extensions = {".png", ".jpg", ".jpeg"}
         # self.load_from_directory(self._current_dir)
 
@@ -15,7 +15,8 @@ class SymbolMapper:
         return self._character_map.get(character, QPixmap())
 
     def set_pixmap(self, char: str, pixmap: QPixmap):
-        self._character_map[char] = pixmap 
+        if pixmap and not pixmap.isNull():
+            self._character_map[char] = pixmap 
 
     def get_current_directory(self) -> str:
         return self._current_dir

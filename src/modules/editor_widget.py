@@ -41,7 +41,7 @@ class EditorWidget(QTextEdit):
         self.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
         self.setLineWrapMode(QTextEdit.LineWrapMode.FixedPixelWidth)
         self.setLineWrapColumnOrWidth(self.page_width)
-
+        self.setAcceptDrops(False)
 
         ## Monospace cross platform
         fuente_original = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)

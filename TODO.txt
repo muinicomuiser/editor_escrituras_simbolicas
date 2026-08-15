@@ -9,6 +9,7 @@ muy pequeñas comparadas con las fuentes
 - Reorganizar todo el editor en subclases
 - Optimizar el cargado y recargado de imágenes. Se revienta un poco la cpu al pasar de texto a imagen, siempre.
 - Al guardar archivos, comprobar si el directorio de símbolos o de guardado existen. También modificar os.path a Pathlib.
+- Tengo un enredo entre paths guardados como PAth y como str
 
 Futuras mejoras:
 - Lógica de Editor / _insert_symbol_image, que se pueda importar el set de imágenes en un formato conveniente para insertarlos en la hoja. El usuario podría

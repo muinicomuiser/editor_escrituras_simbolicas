@@ -9,8 +9,8 @@ class SymbolCollectionDTO(BaseModel):
         extra = "ignore"
 
     @staticmethod
-    def fromEntity(cls, entity):
-        return cls(
+    def fromEntity(entity):
+        return SymbolCollectionDTO(
             collection_name=entity.collection_name,
             directory=entity.directory
         )
@@ -25,8 +25,8 @@ class SavedSymbolsCollectionFileDTO(BaseModel):
     collections: list[SymbolCollectionDTO]
 
     @staticmethod
-    def fromEntity(cls, entity):
-        return cls(
+    def fromEntity(entity):
+        return SavedSymbolsCollectionFileDTO(
             collections=entity.collections
         )
 

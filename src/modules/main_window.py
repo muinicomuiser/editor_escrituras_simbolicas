@@ -37,6 +37,7 @@ class MainWindow(QMainWindow):
         
         self.setWindowTitle(self.config.MAIN_WINDOW_TITLE)
         self.resize(self.config.WIDTH, self.config.HEIGHT)
+        self.setAcceptDrops(False)
 
         # Contenedor central
         self.container = QWidget(self)
@@ -62,7 +63,9 @@ class MainWindow(QMainWindow):
         )
 
         # Prueba de ventana de drag y drop
-        self._symbol_collection_editor = None
+        # self._symbol_collection_editor = None
+        self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self)
+        self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)        
 
         # comandos de usuario (QActions)
         self._create_actions()
@@ -304,15 +307,16 @@ class MainWindow(QMainWindow):
     ## Acá veré cómo funciona lo del drag
     ##
     def _open_symbols_window(self):
-        if self._symbol_collection_editor is None:
-            self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self)
-            self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)
-            self._symbol_collection_editor.show()
-        else:
-            self._symbol_collection_editor.show()
+        self._symbol_collection_editor.show()
+        # if self._symbol_collection_editor is None:
+            # self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self)
+            # self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)
+            # self._symbol_collection_editor.show()
+        # else:
+        #     self._symbol_collection_editor.show()
             # self._symbol_collection_editor.destroyed.connect(self._on_destroyed_symbol_selector)
-    def _on_destroyed_symbol_selector(self):
-        self._symbol_collection_editor = None
+    # def _on_destroyed_symbol_selector(self):
+    #     self._symbol_collection_editor = None
     ##
     ## Hasta acá vi cómo funciona lo del drag
     ##
