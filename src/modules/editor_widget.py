@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QTextEdit
 from PySide6.QtGui import (
+    QBrush,
     QFont,
     QFontMetrics,
     QKeyEvent,
@@ -26,16 +27,16 @@ class EditorWidget(QTextEdit):
     def __init__(self, config: Config, symbol_mapper: SymbolMapper, parent=None):
         super().__init__(parent)
         self.config = config
-
         self._symbol_mapper = symbol_mapper
 
+        # razon = 300 // 96
+
+        self.setObjectName("EditorWidget")
         self.page_height = self.config.HEIGHT
         self.page_width = self.config.WIDTH
 
-        self.m_imageScale = 1.0
         self._init_font_size = 60
-
-        self.m_isTextViewMode = False
+        self._is_text_view_mode = False
 
         self.setAcceptRichText(True)
         self.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
@@ -76,13 +77,8 @@ class EditorWidget(QTextEdit):
         self._background_color = "transparent"
         self.setStyleSheet(f"QTextEdit {{ background-color: {self._background_color}; color: {self._font_color}; }}")
         self.setFixedWidth(self.page_width + self.innerPadding * 2)
-        # self.setFixedWidth(794)
+        self._page_color = Qt.GlobalColor.white
 
-
-
-    def setImageScale(self, scale: float):
-        if scale > 0.1:
-            self.m_imageScale = scale
 
     def setFontSize(self, fontSize: int):
         fuente = self.font()
@@ -91,8 +87,12 @@ class EditorWidget(QTextEdit):
         self.setFont(fuente)
         font_metrics = QFontMetrics(self.font())
         font_width = font_metrics.horizontalAdvance("W")
-        nueva_escala = float(font_width) / 24.0
-        self.setImageScale(nueva_escala)
+        # nueva_escala = float(font_width) / 24.0
+        # self.setImageScale(nueva_escala)
+
+    def set_page_color(self, color: Qt.GlobalColor):
+        self._page_color = color
+        self.update()
 
     # Método creado, por revisar
     def setContent(self, plain_text_content: str):
@@ -103,7 +103,7 @@ class EditorWidget(QTextEdit):
     
         self._symbol_mapper.load_from_directory(path)
 
-        if not self.m_isTextViewMode and not self.document().isEmpty():
+        if not self._is_text_view_mode and not self.document().isEmpty():
             self.switchToTextView()
             self.switchToImageView()
 
@@ -195,7 +195,7 @@ class EditorWidget(QTextEdit):
    
     # Para eventos de tecla simple y vivas (como letras)
     def keyPressEvent(self, event: QKeyEvent):
-        if self.m_isTextViewMode or event.key() in (
+        if self._is_text_view_mode or event.key() in (
             Qt.Key.Key_Backspace,
             Qt.Key.Key_Delete,
             Qt.Key.Key_Return,
@@ -222,7 +222,7 @@ class EditorWidget(QTextEdit):
     # Para eventos compuestos, como letras con tilde
     ## FALTA. Manejo de excepciones
     def inputMethodEvent(self, event: QInputMethodEvent):
-        if self.m_isTextViewMode:
+        if self._is_text_view_mode:
             super().inputMethodEvent(event)
             return
         commit_text = event.commitString()
@@ -238,15 +238,10 @@ class EditorWidget(QTextEdit):
         # super().inputMethodEvent(event)
         # self.update()
 
-
-
-
-
-
     def switchToTextView(self):
-        if self.m_isTextViewMode:
+        if self._is_text_view_mode:
             return
-        self.m_isTextViewMode = True
+        self._is_text_view_mode = True
 
         cursor = self.textCursor()
         cursor_position = cursor.position()
@@ -300,13 +295,13 @@ class EditorWidget(QTextEdit):
 
     def switchToImageView(self):
 
-        if not self.m_isTextViewMode:
+        if not self._is_text_view_mode:
             return
-        self.m_isTextViewMode = False
+        self._is_text_view_mode = False
         self.blockSignals(True)
 
         cursor = self.textCursor()
-        # cursor_position = cursor.position()
+        cursor_position = cursor.position()
 
         current_text = self.toPlainText()
         self.clear()
@@ -322,8 +317,9 @@ class EditorWidget(QTextEdit):
             if not self._symbol_mapper.has_image(target_char):
                 cursor.insertText(char)
             self._insert_symbol_image(char, target_char)
-
         self._applyMargin()
+        cursor.setPosition(cursor_position)
+        self.setTextCursor(cursor)
         # block_format = QTextBlockFormat()
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)        
         self.blockSignals(False)
@@ -360,14 +356,14 @@ class EditorWidget(QTextEdit):
             page_top = i * (self.page_height + self.page_gap) + self.page_gap - scroll_y
             page_rect = QRectF(x_offset, page_top, self.page_width, self.page_height)
 
-            painter.fillRect(page_rect, Qt.GlobalColor.white)
-            painter.setPen(QPen(QColor("#cccccc"), 2))
+            painter.fillRect(page_rect, self._page_color)
+            # painter.fillRect(page_rect, Qt.GlobalColor.white)
+            painter.setPen(QPen(QColor("#cccccc"), 2)) # La línea entre páginas
             painter.drawRect(page_rect)
 
         painter.end()
 
         super().paintEvent(event)
-
 
     # RESPALDO
 
@@ -398,9 +394,9 @@ class EditorWidget(QTextEdit):
     #     return True
 
     # def switchToTextView(self):
-    #     if self.m_isTextViewMode:
+    #     if self._is_text_view_mode:
     #         return
-    #     self.m_isTextViewMode = True
+    #     self._is_text_view_mode = True
 
     #     cursor = self.textCursor()
     #     cursor_position = cursor.position()

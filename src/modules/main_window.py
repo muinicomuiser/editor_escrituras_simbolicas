@@ -41,8 +41,8 @@ class MainWindow(QMainWindow):
 
         # Contenedor central
         self.container = QWidget(self)
-        self.setCentralWidget(self.container)
         self.container.setObjectName("MainWidget")
+        self.setCentralWidget(self.container)
         self.main_layout = QHBoxLayout(self.container)
 
         # Symbol Mapper para inyectar en editor y ventana de colecciones
@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(self._editor)
         self.main_layout.setAlignment(self._editor, Qt.AlignmentFlag.AlignHCenter)
         self.main_layout.setContentsMargins(0, 20, 0, 20)
-        self._editor.setObjectName("Editor")
+
 
 
         # Dependencia de persistencia
@@ -63,7 +63,6 @@ class MainWindow(QMainWindow):
         )
 
         # Prueba de ventana de drag y drop
-        # self._symbol_collection_editor = None
         self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self)
         self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)        
 
@@ -82,7 +81,7 @@ class MainWindow(QMainWindow):
         # self.setStyleSheet("""
         #     QMainWindow {
         #     }
-        #     #Editor {
+        #     #EditorWidget {
         #     }
         #     QLabel {
         #         color: #ffffff;
@@ -149,7 +148,8 @@ class MainWindow(QMainWindow):
             return None
         try:
             project = self.file_manager.openFile(file_name)
-            self._editor.setAssetsDirectory(project.assetsDirectory)
+            # self._editor.setAssetsDirectory(project.assetsDirectory)
+            self._symbol_collection_editor.select_collection_by_name(project.collectionName)
             if project.imageSize is not None:
                 self._fontSizeBox.setCurrentText(f"{project.imageSize}")
 
@@ -193,13 +193,13 @@ class MainWindow(QMainWindow):
 
         project = self._projectModel()
         current_filename = self.file_manager.get_current_filename()
-        new_filename = f"{current_filename if current_filename is not None else self.config.UNTITLED_DEFAULT_FILENAME}"
-        new_filename: str = f"{new_filename}.json" if not new_filename.lower().endswith(".json") else new_filename
+        new_filename = f"{current_filename if current_filename is not None else self.config.UNTITLED_DEFAULT_FILENAME}{self.file_manager.get_file_extension()}"
+        # new_filename: str = f"{new_filename}.json" if not new_filename.lower().endswith(".json") else new_filename
         file_name, _ = QFileDialog.getSaveFileName(
             self,
             "Guardar Proyecto",
             new_filename,
-            f"Archivo de Proyecto (*.{self.file_manager.get_file_extension()})",
+            f"Archivo de Proyecto (*{self.file_manager.get_file_extension()})",
         )
         if not file_name:
             return
@@ -214,7 +214,7 @@ class MainWindow(QMainWindow):
 
     ### Se está guardando con .json
     def onExportPdf(self):
-        
+
         current_filename = self.file_manager.get_current_filename()
         file_name, _ = QFileDialog.getSaveFileName(
             self,
@@ -261,11 +261,10 @@ class MainWindow(QMainWindow):
             painter.restore()
 
         painter.end()
-        QMessageBox.information(self, "Éxito", f"PDF generado exitosamente.")
 
     def onExportImage(self):
         file_name, _ = QFileDialog.getSaveFileName(
-            self, "Exportar como Imagen", "untiled.png", "Imagen PNG (*.png)"
+            self, "Exportar como Imagen", f"{self.file_manager.get_current_filename()}.png", "Imagen PNG (*.png)"
         )
         if not file_name:
             return
@@ -321,46 +320,46 @@ class MainWindow(QMainWindow):
     ## Hasta acá vi cómo funciona lo del drag
     ##
 
-    def onChangeSymbols(self):
+    # def onChangeSymbols(self):
 
   
-        files = QFileDialog.getOpenFileNames(
-            self,
-            "Selecciona los símbolos",
-            self._editor.getAssetsDirectory()
-        )
-        if files:
-            print(files)
-            dir = os.path.dirname(files[0][0])
-            print(dir)
-        else:
-            return
+    #     files = QFileDialog.getOpenFileNames(
+    #         self,
+    #         "Selecciona los símbolos",
+    #         self._editor.getAssetsDirectory()
+    #     )
+    #     if files:
+    #         print(files)
+    #         dir = os.path.dirname(files[0][0])
+    #         print(dir)
+    #     else:
+    #         return
 
         
-        # directory = QFileDialog.getExistingDirectory(
-        #     self,
-        #     "Seleccionar Directorio de Símbolos",
-        #     self._editor.getAssetsDirectory(),
-        #     QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
-        # )
-        # if directory:
-        #     self._editor.setAssetsDirectory(directory)
-        #     QMessageBox.information(
-        #         self, "Set Cambiado", f"Se han cargado los símbolos desde: {directory}"
-        #     )
+    #     # directory = QFileDialog.getExistingDirectory(
+    #     #     self,
+    #     #     "Seleccionar Directorio de Símbolos",
+    #     #     self._editor.getAssetsDirectory(),
+    #     #     QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+    #     # )
+    #     # if directory:
+    #     #     self._editor.setAssetsDirectory(directory)
+    #     #     QMessageBox.information(
+    #     #         self, "Set Cambiado", f"Se han cargado los símbolos desde: {directory}"
+    #     #     )
 
-    def onChangeDirectory(self):
-        directory = QFileDialog.getExistingDirectory(
-            self,
-            "Seleccionar Directorio de Símbolos",
-            self._editor.getAssetsDirectory(),
-            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
-        )
-        if directory:
-            self._editor.setAssetsDirectory(directory)
-            QMessageBox.information(
-                self, "Set Cambiado", f"Se han cargado los símbolos desde: {directory}"
-            )
+    # def onChangeDirectory(self):
+    #     directory = QFileDialog.getExistingDirectory(
+    #         self,
+    #         "Seleccionar Directorio de Símbolos",
+    #         self._editor.getAssetsDirectory(),
+    #         QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+    #     )
+    #     if directory:
+    #         self._editor.setAssetsDirectory(directory)
+    #         QMessageBox.information(
+    #             self, "Set Cambiado", f"Se han cargado los símbolos desde: {directory}"
+    #         )
 
     def _tutorial_window(self):
 
@@ -473,7 +472,7 @@ class MainWindow(QMainWindow):
             version = self.config.APP_VERSION,
             content = self._editor.toPlainText(),
             imageSize = int(self._fontSizeBox.currentText()),
-            assetsDirectory = self._editor.getAssetsDirectory(),
+            collectionName = self._symbol_collection_editor.get_current_collection_name(),
         )
         if was_in_images_mode:
             self._editor.switchToImageView()

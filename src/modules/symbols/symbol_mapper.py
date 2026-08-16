@@ -1,6 +1,5 @@
 import os
 from PySide6.QtGui import QPixmap
-from modules.shared.models.symbol_collection_model import SymbolCollectionModel
 
 class SymbolMapper:
     def __init__(self):

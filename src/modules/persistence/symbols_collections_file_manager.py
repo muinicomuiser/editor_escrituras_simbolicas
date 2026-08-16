@@ -60,8 +60,8 @@ class SymbolsCollectionFileManager:
         if not self.collections_persistence_file:
             raise FileNotFoundError("No hay ruta asignada.")
 
-        if not self._saved:
-            self.saveFileAs(entity)
+        self.saveFileAs(entity)
+        self._saved = True
     #     if not self._saved:
     #         dto: SavedSymbolsCollectionFileDTO = self._toDTO(entity)            
     #         with open(self._current_filename, "w", encoding="utf-8") as f:
@@ -87,14 +87,51 @@ class SymbolsCollectionFileManager:
 
     def add_collection(self, collection: SymbolCollectionModel):
         ## Ver también si puedo dejar abierta la conexión con el archivo, o cómo abordar eso
-        collection_file = self.openFile()
-        collection_file.collections.append(collection)
-        self.saveFileAs(collection_file)
+        collections_data = self.openFile()
+        collections_data.collections.append(collection)
+        self.saveFileAs(collections_data)
 
-    def find_by_name(self, name: str) -> SymbolCollectionModel:
-        collection_file = self.openFile()
-        saved_collection = next((item for item in collection_file.collections if item.collection_name == name), None)
-        return saved_collection
+    def find_by_name(self, name: str) -> SymbolCollectionModel | None:
+        collections_data = self.openFile()
+        collection = next((item for item in collections_data.collections if item.collection_name == name), None)
+        return collection
+
+
+    ## Agregar manejo de excepciones, si es que no logra reemplazar o guardar
+    def update(self, collection_name: str, replace_collection: SymbolCollectionModel) -> SymbolCollectionModel:
+        collections_data = self.openFile()
+        index, existing = next(((index, collection) for index, collection in enumerate(collections_data.collections) if collection.collection_name == collection_name), None)
+        if existing:
+            old_path = self._collections_persistence_dir.joinpath(existing.directory)
+            new_dir = replace_collection.directory
+            new_path = self._collections_persistence_dir.joinpath(new_dir)
+
+            # new_collection = SymbolCollectionModel(collection_name=collection_name, directory=new_dir)
+
+            # collections_data.collections.pop(index)
+            # collections_data.collections.append(new_collection)
+            collections_data.collections[index].collection_name = replace_collection.collection_name
+            collections_data.collections[index].directory = new_dir
+
+            # existing.collection_name = replace_collection.collection_name
+            # existing.directory = new_dir
+            old_path.rename(new_path)
+            self.saveFile(collections_data)
+
+        else:
+            self.add_collection(replace_collection)
+
+    def delete(self, collection_name: str):
+        collections_data = self.openFile()
+        index, existing = next(((index, collection) for index, collection in enumerate(collections_data.collections) if collection.collection_name == collection_name), None)
+        if existing:
+            old_path = self._collections_persistence_dir.joinpath(existing.directory)
+            files = [files for files in old_path.iterdir()]
+            for file in files:
+                file.unlink()
+            old_path.rmdir()
+            collections_data.collections.pop(index)
+            self.saveFile(collections_data)            
 
     # def saveFileAs(self, file_name: str, entity: SavedSymbolsCollectionFileModel):
 

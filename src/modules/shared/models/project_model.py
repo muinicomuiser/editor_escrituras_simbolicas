@@ -6,4 +6,4 @@ class ProjectModel(BaseModel):
     version: str
     content: str
     imageSize: int
-    assetsDirectory: str
+    collectionName: str

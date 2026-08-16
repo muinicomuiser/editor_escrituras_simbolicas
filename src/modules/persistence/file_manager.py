@@ -10,7 +10,7 @@ class FileManager:
     def __init__(self):
         self._saved = False
         self._current_filename = None
-        self._file_extension = "json"
+        self._file_extension = ".json"
 
     def set_to_unsaved(self):
         self._saved = False
@@ -19,7 +19,7 @@ class FileManager:
         self._saved = True
 
     def get_current_filename(self):
-        return self._current_filename
+        return self._current_filename.removesuffix(self._file_extension) if self._current_filename else None
 
     def get_file_extension(self):
         return self._file_extension
@@ -47,9 +47,9 @@ class FileManager:
 
     def saveFileAs(self, file_name: str, entity: ProjectModel):
 
-        file_extension = f".{self._file_extension}"
-        if not file_name.lower().endswith(file_extension):
-            file_name += file_extension
+        # file_extension = f"{self._file_extension}"
+        if not file_name.lower().endswith(self._file_extension):
+            file_name += self._file_extension
         dto: SavedFileDTO = self._toDTO(entity)
         with open(file_name, "w", encoding="utf-8") as f:
             f.write(dto.model_dump_json(indent=2))
@@ -60,7 +60,7 @@ class FileManager:
     def _toDTO(self, entity: ProjectModel) -> SavedFileDTO:
         return SavedFileDTO(
             version=entity.version,
-            assetsDirectory=entity.assetsDirectory,
+            collectionName=entity.collectionName,
             content=entity.content,
             imageSize=entity.imageSize
         )
@@ -68,7 +68,7 @@ class FileManager:
     def _toDomain(self, dto: SavedFileDTO) -> ProjectModel:
         return ProjectModel(
             version=dto.version,
-            assetsDirectory=dto.assetsDirectory,
+            collectionName=dto.collectionName,
             content=dto.content,
             imageSize=dto.imageSize
         )
