@@ -5,7 +5,7 @@ class SavedFileDTO(BaseModel):
     version: str = Field(default="1.0")
     content: str
     imageSize: int
-    assetsDirectory: str
+    collectionName: str
 
     class Config:
         extra = "ignore"
