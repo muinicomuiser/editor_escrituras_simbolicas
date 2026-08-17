@@ -5,15 +5,17 @@ from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QDropEvent, QPaintEvent, QPainter, QPixmap
 from PIL import Image, ImageQt
 
+
 class SymbolDropSurface(QWidget):
     image_dropped = Signal()
+
     def __init__(self, parent=None, symbol_name: str = None):
         super().__init__(parent)
         self.symbol_name = symbol_name
         self.setAcceptDrops(True)
-        self.pixmap = QPixmap()  
+        self.pixmap = QPixmap()
 
-        self._valid_extensions = {".png", ".jpg", ".jpeg"}              
+        self._valid_extensions = {".png", ".jpg", ".jpeg"}
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
     # Evento de entrada de un elemento al área. De este evento depende dropEvent, porque le da una validación previa.
@@ -27,16 +29,16 @@ class SymbolDropSurface(QWidget):
             event.ignore()
         else:
             event.acceptProposedAction()
-        return super().dragEnterEvent(event)        
+        return super().dragEnterEvent(event)
 
     def has_symbol(self):
         return not self.pixmap.isNull()
 
     # Evento que se dispara cada vez que el mouse se mueve dentro del área, por cada pixel.
-    # No es necesario para mi caso    
+    # No es necesario para mi caso
     # def dragMoveEvent(self, event: QDropEvent):
     #     event.accept()
-    #     return super().dragMoveEvent(event)        
+    #     return super().dragMoveEvent(event)
 
     def dropEvent(self, event: QDropEvent):
         if event.mimeData().hasUrls():
@@ -44,7 +46,7 @@ class SymbolDropSurface(QWidget):
             image_path = event.mimeData().urls()[0].toLocalFile()
             self.set_image(image_path)
             self.image_dropped.emit()
-            event.accept()            
+            event.accept()
 
     def clear(self):
         """Asigna a la superficie un Pixmap vacío y la actualiza."""
@@ -54,8 +56,8 @@ class SymbolDropSurface(QWidget):
     ## WIP
     def save_to_file(self, symbol_dir_path: Path) -> bool:
         """Guarda la imagen con el nombre del símbolo y la extensión de la imagen de origen en el directorio dado."""
-        if self.pixmap and self.has_symbol():      
-            filename =  f"{self.symbol_name}{Path(self.image_path).suffix.lower()}"
+        if self.pixmap and self.has_symbol():
+            filename = f"{self.symbol_name}{Path(self.image_path).suffix.lower()}"
             image_path = symbol_dir_path.joinpath(filename)
             saved = self.pixmap.save(str(image_path))
             if saved:
@@ -78,14 +80,17 @@ class SymbolDropSurface(QWidget):
             self.image_path = str(image_path)
             # self.image_dropped.emit(self.image_path, is_saved)
             self.update()
-        
 
     def paintEvent(self, event: QPaintEvent):
         painter = QPainter(self)
-            
+
         if not self.pixmap.isNull():
-            scaled_pixmap = self.pixmap.scaled(self.size(), aspectMode=Qt.AspectRatioMode.KeepAspectRatio, mode=Qt.TransformationMode.SmoothTransformation)
+            scaled_pixmap = self.pixmap.scaled(
+                self.size(),
+                aspectMode=Qt.AspectRatioMode.KeepAspectRatio,
+                mode=Qt.TransformationMode.SmoothTransformation,
+            )
             x = (self.width() - scaled_pixmap.width()) // 2
             y = (self.height() - scaled_pixmap.height()) // 2
             painter.drawPixmap(x, y, scaled_pixmap)
-        painter.end()    
+        painter.end()

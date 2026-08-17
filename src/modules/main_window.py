@@ -29,12 +29,13 @@ from modules.shared.models.project_model import ProjectModel
 from modules.symbols.symbol_selector_widget import SymbolSelectorWindow
 from modules.symbols.symbol_mapper import SymbolMapper
 
+
 class MainWindow(QMainWindow):
     def __init__(self, config: Config, parent=None):
         super().__init__(parent)
         self.config = config
+        self.setObjectName("MainWindow")
 
-        
         self.setWindowTitle(self.config.MAIN_WINDOW_TITLE)
         self.resize(self.config.WIDTH, self.config.HEIGHT)
         self.setAcceptDrops(False)
@@ -46,7 +47,7 @@ class MainWindow(QMainWindow):
         self.main_layout = QHBoxLayout(self.container)
 
         # Symbol Mapper para inyectar en editor y ventana de colecciones
-        self._symbol_mapper = SymbolMapper()        
+        self._symbol_mapper = SymbolMapper()
 
         # Editor
         self._editor = EditorWidget(self.config, self._symbol_mapper, self)
@@ -54,17 +55,13 @@ class MainWindow(QMainWindow):
         self.main_layout.setAlignment(self._editor, Qt.AlignmentFlag.AlignHCenter)
         self.main_layout.setContentsMargins(0, 20, 0, 20)
 
-
-
         # Dependencia de persistencia
         self.file_manager = FileManager()
-        self._editor.textChanged.connect(
-            self.file_manager.set_to_unsaved
-        )
+        self._editor.textChanged.connect(self.file_manager.set_to_unsaved)
 
         # Prueba de ventana de drag y drop
         self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self)
-        self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)        
+        self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)
 
         # comandos de usuario (QActions)
         self._create_actions()
@@ -75,29 +72,7 @@ class MainWindow(QMainWindow):
         # menú superior
         self._create_menu_bar()
 
-
-        # self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        # self.setAttribute(Qt.WA_TranslucentBackground)
-        # self.setStyleSheet("""
-        #     QMainWindow {
-        #     }
-        #     #EditorWidget {
-        #     }
-        #     QLabel {
-        #         color: #ffffff;
-        #         font-size: 16px;
-        #         font-family: 'Segoe UI', Arial, sans-serif;
-        #         font-weight: bold;
-        #     }
-        #     QToolBar {
-        #         color: #ffffff;
-        #         font-size: 16px;
-        #         font-family: 'Segoe UI', Arial, sans-serif;
-        #         font-weight: bold;
-        #     }
-        #     """)
-
-    def onToggleViewChanged(self, checked: bool): # CHECK
+    def onToggleViewChanged(self, checked: bool):  # CHECK
 
         if checked:
             self._toggleViewAction.setText("Modo Texto")
@@ -127,8 +102,7 @@ class MainWindow(QMainWindow):
     def onSymbolsChanged(self):
         if not self._toggleViewAction.isChecked():
             self._editor.switchToTextView()  # Está usando este método para pintar la nueva escala???
-            self._editor.switchToImageView()        
-
+            self._editor.switchToImageView()
 
     ## Repasar.
     ## Acá también debería iniciarse el editor de colección de símbolos
@@ -137,7 +111,7 @@ class MainWindow(QMainWindow):
     ## Que el botón de abrir cree el editor de símbolos
     ## Que el botón de elegir simbolos tenga tres caminos:
     ## Crear si no se ha abierto ningún archivo (en blanco)
-    ## Hacer update y show si se ha abierto un archivo con una colección elegida 
+    ## Hacer update y show si se ha abierto un archivo con una colección elegida
 
     def onOpenFile(self):  ## CHECK (Solo falta revisar el paso de los switchs)
 
@@ -148,8 +122,9 @@ class MainWindow(QMainWindow):
             return None
         try:
             project = self.file_manager.openFile(file_name)
-            # self._editor.setAssetsDirectory(project.assetsDirectory)
-            self._symbol_collection_editor.select_collection_by_name(project.collectionName)
+            self._symbol_collection_editor.select_collection_by_name(
+                project.collectionName
+            )
             if project.imageSize is not None:
                 self._fontSizeBox.setCurrentText(f"{project.imageSize}")
 
@@ -164,13 +139,14 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Error de archivo: {str(e)}")
 
         except ValidationError as e:
-            QMessageBox.critical(self, "Error", f"El archivo no es válido o está corrupto")
+            QMessageBox.critical(
+                self, "Error", f"El archivo no es válido o está corrupto"
+            )
 
         except Exception as e:
             QMessageBox.critical(
                 self, "Error", f"No se pudo abrir el archivo: {str(e)}"
             )
-
 
     def onSaveFile(
         self,
@@ -194,7 +170,6 @@ class MainWindow(QMainWindow):
         project = self._projectModel()
         current_filename = self.file_manager.get_current_filename()
         new_filename = f"{current_filename if current_filename is not None else self.config.UNTITLED_DEFAULT_FILENAME}{self.file_manager.get_file_extension()}"
-        # new_filename: str = f"{new_filename}.json" if not new_filename.lower().endswith(".json") else new_filename
         file_name, _ = QFileDialog.getSaveFileName(
             self,
             "Guardar Proyecto",
@@ -210,7 +185,6 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(
                 self, "Error", f"No se pudo crear el archivo de proyecto: {str(error)}"
             )
-
 
     ### Se está guardando con .json
     def onExportPdf(self):
@@ -264,7 +238,10 @@ class MainWindow(QMainWindow):
 
     def onExportImage(self):
         file_name, _ = QFileDialog.getSaveFileName(
-            self, "Exportar como Imagen", f"{self.file_manager.get_current_filename()}.png", "Imagen PNG (*.png)"
+            self,
+            "Exportar como Imagen",
+            f"{self.file_manager.get_current_filename()}.png",
+            "Imagen PNG (*.png)",
         )
         if not file_name:
             return
@@ -308,12 +285,13 @@ class MainWindow(QMainWindow):
     def _open_symbols_window(self):
         self._symbol_collection_editor.show()
         # if self._symbol_collection_editor is None:
-            # self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self)
-            # self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)
-            # self._symbol_collection_editor.show()
+        # self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self)
+        # self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)
+        # self._symbol_collection_editor.show()
         # else:
         #     self._symbol_collection_editor.show()
-            # self._symbol_collection_editor.destroyed.connect(self._on_destroyed_symbol_selector)
+        # self._symbol_collection_editor.destroyed.connect(self._on_destroyed_symbol_selector)
+
     # def _on_destroyed_symbol_selector(self):
     #     self._symbol_collection_editor = None
     ##
@@ -322,7 +300,6 @@ class MainWindow(QMainWindow):
 
     # def onChangeSymbols(self):
 
-  
     #     files = QFileDialog.getOpenFileNames(
     #         self,
     #         "Selecciona los símbolos",
@@ -335,7 +312,6 @@ class MainWindow(QMainWindow):
     #     else:
     #         return
 
-        
     #     # directory = QFileDialog.getExistingDirectory(
     #     #     self,
     #     #     "Seleccionar Directorio de Símbolos",
@@ -364,9 +340,9 @@ class MainWindow(QMainWindow):
     def _tutorial_window(self):
 
         QMessageBox().information(
-        # mensaje = QMessageBox.information(
-            self, 
-            "Instrucciones", 
+            # mensaje = QMessageBox.information(
+            self,
+            "Instrucciones",
             textwrap.dedent("""
             <b>Elegir símbolos</b><br>
             1. Presiona 'Elegir Símbolos'.<br>
@@ -376,10 +352,9 @@ class MainWindow(QMainWindow):
             <b>Cambiar modo de vista</b><br>
 
             Presiona el botón 'Modo Texto' o 'Modo Símbolos' para cambiar el modo en que se muestran los símbolos en la hoja.<br>
-            """)
+            """),
         )
 
-    
     def _create_actions(self):
 
         # Abrir
@@ -406,15 +381,13 @@ class MainWindow(QMainWindow):
         # self._changeDirAction.triggered.connect(self.onChangeSymbols)
         # self._changeDirAction.triggered.connect(self.onChangeDirectory)
 
-
         self._toggleViewAction = QAction("Modo Símbolos", self)
         self._toggleViewAction.setCheckable(True)
         self._toggleViewAction.toggled.connect(self.onToggleViewChanged)
 
-
         # Ventana de ayuda
         self._tutorialAction = QAction("Instrucciones", self)
-        self._tutorialAction.triggered.connect(self._tutorial_window)        
+        self._tutorialAction.triggered.connect(self._tutorial_window)
 
     def _create_toolbar(self):
         toolbar = QToolBar("Barra de Herramientas Main", self)
@@ -450,29 +423,52 @@ class MainWindow(QMainWindow):
     def _build_font_size_combobox(self) -> QComboBox:
         box = QComboBox(self)
         sizes = [
-            "1", "2", "4", "6", "8", "10", "12", "14", "18", "22", "24",
-            "28", "32", "36", "40", "44", "48", "52", "56", "60", "66", "72", "80", "88", "96"
+            "1",
+            "2",
+            "4",
+            "6",
+            "8",
+            "10",
+            "12",
+            "14",
+            "18",
+            "22",
+            "24",
+            "28",
+            "32",
+            "36",
+            "40",
+            "44",
+            "48",
+            "52",
+            "56",
+            "60",
+            "66",
+            "72",
+            "80",
+            "88",
+            "96",
         ]
         init_size = "60"
         box.addItems(sizes)
         box.setCurrentText(init_size)
         box.setEditable(True)
         box.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        
+
         box.lineEdit().returnPressed.connect(self.onFontSizeChanged)
         box.currentIndexChanged.connect(self.onFontSizeChanged)
         return box
 
-    def _projectModel(self) -> ProjectModel:   # Auxiliar, crea el objeto de guardado
+    def _projectModel(self) -> ProjectModel:  # Auxiliar, crea el objeto de guardado
 
         was_in_images_mode = not self._toggleViewAction.isChecked()
         if was_in_images_mode:
             self._editor.switchToTextView()
         project = ProjectModel(
-            version = self.config.APP_VERSION,
-            content = self._editor.toPlainText(),
-            imageSize = int(self._fontSizeBox.currentText()),
-            collectionName = self._symbol_collection_editor.get_current_collection_name(),
+            version=self.config.APP_VERSION,
+            content=self._editor.toPlainText(),
+            imageSize=int(self._fontSizeBox.currentText()),
+            collectionName=self._symbol_collection_editor.get_current_collection_name(),
         )
         if was_in_images_mode:
             self._editor.switchToImageView()

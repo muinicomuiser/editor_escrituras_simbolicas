@@ -29,6 +29,8 @@ Sincronizar dependencias (instala desde pyproject.toml)
 uv sync
 uv sync --no-dev (para instalar solo de producción)
 
+Ejecución con reload:
+    uv run watchfiles "python3 src/main.py -d" src
 
 ** Estructura jeráquica de QT
 
