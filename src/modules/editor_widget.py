@@ -1,6 +1,8 @@
+import re
+import unicodedata
+
 from PySide6.QtWidgets import QTextEdit
 from PySide6.QtGui import (
-    QBrush,
     QFont,
     QFontMetrics,
     QKeyEvent,
@@ -97,23 +99,11 @@ class EditorWidget(QTextEdit):
         self.setPlainText(plain_text_content)
 
     def _to_clean_char(self, char: str):
-        tildes = {
-            "á": "a",
-            "Á": "a",
-            "é": "e",
-            "É": "e",
-            "í": "i",
-            "Í": "i",
-            "ó": "o",
-            "Ó": "o",
-            "ú": "u",
-            "Ú": "u",
-            "ü": "u",
-            "Ü": "u",
-            "ñ": "ñ",
-            "Ñ": "ñ",
-        }
-        return tildes.get(char, char).lower()
+        clean = char
+        if clean not in ["ñ", "Ñ"]:
+            nfkd = unicodedata.normalize("NFKD", char)
+            clean = "".join([c for c in nfkd if not unicodedata.combining(c)])
+        return clean.lower()
 
     def _insert_symbol_image(self, original_char: str, target_char: str):
         if not self._symbol_mapper.has_image(target_char):

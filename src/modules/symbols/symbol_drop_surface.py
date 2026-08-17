@@ -78,10 +78,9 @@ class SymbolDropSurface(QWidget):
                         pixmap = ImageQt.toqpixmap(cropped)
             self.pixmap = pixmap
             self.image_path = str(image_path)
-            # self.image_dropped.emit(self.image_path, is_saved)
             self.update()
 
-    def paintEvent(self, event: QPaintEvent):
+    def paintEvent(self, _event: QPaintEvent):
         painter = QPainter(self)
 
         if not self.pixmap.isNull():
