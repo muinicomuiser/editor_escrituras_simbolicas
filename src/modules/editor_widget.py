@@ -58,7 +58,7 @@ class EditorWidget(QTextEdit):
         ### Sirve para setear la alineación del documento completo.
         ### El problema es que no logro que el pintado de las imágenes se ajuste a la alineación
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter) #### Sirve para setear la alineación del documento completo.
-        
+
         block_format.setLineHeight(float(font_height), 2)
         cursor = self.textCursor()
         cursor.setBlockFormat(block_format)
@@ -75,20 +75,17 @@ class EditorWidget(QTextEdit):
         # 3. Estilo Visual
         self._font_color = "#444444"
         self._background_color = "transparent"
-        self.setStyleSheet(f"QTextEdit {{ background-color: {self._background_color}; color: {self._font_color}; }}")
+        self.setStyleSheet(
+            f"QTextEdit {{ background-color: {self._background_color}; color: {self._font_color}; }}"
+        )
         self.setFixedWidth(self.page_width + self.innerPadding * 2)
         self._page_color = Qt.GlobalColor.white
-
 
     def setFontSize(self, fontSize: int):
         fuente = self.font()
         fuente.setPointSize(fontSize)
         fuente.setWordSpacing(float(fontSize))
         self.setFont(fuente)
-        font_metrics = QFontMetrics(self.font())
-        font_width = font_metrics.horizontalAdvance("W")
-        # nueva_escala = float(font_width) / 24.0
-        # self.setImageScale(nueva_escala)
 
     def set_page_color(self, color: Qt.GlobalColor):
         self._page_color = color
@@ -98,17 +95,6 @@ class EditorWidget(QTextEdit):
     def setContent(self, plain_text_content: str):
         self.clear()
         self.setPlainText(plain_text_content)
-
-    def setAssetsDirectory(self, path: str): ## Revisar
-    
-        self._symbol_mapper.load_from_directory(path)
-
-        if not self._is_text_view_mode and not self.document().isEmpty():
-            self.switchToTextView()
-            self.switchToImageView()
-
-    def getAssetsDirectory(self) -> str:
-        return self._symbol_mapper.get_current_directory()
 
     def _to_clean_char(self, char: str):
         tildes = {
@@ -126,7 +112,7 @@ class EditorWidget(QTextEdit):
             "Ü": "u",
             "ñ": "ñ",
             "Ñ": "ñ",
-        }        
+        }
         return tildes.get(char, char).lower()
 
     def _insert_symbol_image(self, original_char: str, target_char: str):
@@ -134,9 +120,9 @@ class EditorWidget(QTextEdit):
             return False
 
         font_metrics = QFontMetrics(self.font())
-        char_width = int(font_metrics.horizontalAdvance("W")) 
+        char_width = int(font_metrics.horizontalAdvance("W"))
         char_height = int(font_metrics.height())
-        # char_width = int(font_metrics.horizontalAdvance("W") * self.m_imageScale) 
+        # char_width = int(font_metrics.horizontalAdvance("W") * self.m_imageScale)
         # char_height = int(font_metrics.height() * self.m_imageScale)
 
         # ID único de la imagen al tamaño (Caché)
@@ -144,9 +130,9 @@ class EditorWidget(QTextEdit):
         resource_url = QUrl(resource_id)
 
         doc = self.document()
-        
+
         if not doc.resource(QTextDocument.ResourceType.ImageResource, resource_url):
-            
+
             original_pixmap = self._symbol_mapper.get_pixmap(target_char)
             # original_pixmap = QPixmap(image_path)
             # image_path = self._symbol_mapper.get_image_path(target_char)
@@ -155,7 +141,7 @@ class EditorWidget(QTextEdit):
                 char_width,
                 char_height,
                 Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
+                Qt.TransformationMode.SmoothTransformation,
             )
             canvas = QPixmap(char_width, char_height)
             canvas.fill(Qt.GlobalColor.transparent)
@@ -168,13 +154,17 @@ class EditorWidget(QTextEdit):
             painter.end()
 
             # Guardar el nuevo lienzo en los recursos en memoria del documento
-            doc.addResource(QTextDocument.ResourceType.ImageResource, resource_url, canvas.toImage())
+            doc.addResource(
+                QTextDocument.ResourceType.ImageResource, resource_url, canvas.toImage()
+            )
 
         image_format = QTextImageFormat()
         image_format.setName(resource_url.toString())
         image_format.setWidth(char_width)
         image_format.setHeight(char_height)
-        image_format.setVerticalAlignment(QTextCharFormat.VerticalAlignment.AlignBaseline)
+        image_format.setVerticalAlignment(
+            QTextCharFormat.VerticalAlignment.AlignBaseline
+        )
 
         # 5. Propiedades para evitar que Qt fusione los bloques
         user_prop_char = int(QTextFormat.Property.UserProperty) + 1
@@ -190,9 +180,9 @@ class EditorWidget(QTextEdit):
         cursor.setCharFormat(formato_actual)
         cursor.insertImage(image_format)
         self.setTextCursor(cursor)
-        
+
         return True
-   
+
     # Para eventos de tecla simple y vivas (como letras)
     def keyPressEvent(self, event: QKeyEvent):
         if self._is_text_view_mode or event.key() in (
@@ -218,7 +208,6 @@ class EditorWidget(QTextEdit):
             super().keyPressEvent(event)
             self.update()
 
-    
     # Para eventos compuestos, como letras con tilde
     ## FALTA. Manejo de excepciones
     def inputMethodEvent(self, event: QInputMethodEvent):
@@ -228,15 +217,13 @@ class EditorWidget(QTextEdit):
         commit_text = event.commitString()
         if not commit_text:
             return
-        
+
         pressed_char = commit_text[0]
         target_char = self._to_clean_char(pressed_char)
         inserted_image = self._insert_symbol_image(pressed_char, target_char)
         if not inserted_image:
             super().inputMethodEvent(event)
-        self.update()        
-        # super().inputMethodEvent(event)
-        # self.update()
+        self.update()
 
     def switchToTextView(self):
         if self._is_text_view_mode:
@@ -281,7 +268,6 @@ class EditorWidget(QTextEdit):
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
 
-
         block_format = QTextBlockFormat()
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Aplicar el formato a todos los bloques del documento actual de golpe
@@ -291,7 +277,6 @@ class EditorWidget(QTextEdit):
 
         self._applyMargin()
         self.blockSignals(False)
-
 
     def switchToImageView(self):
 
@@ -309,7 +294,7 @@ class EditorWidget(QTextEdit):
         cursor = self.textCursor()
 
         for char in current_text:
-            if char in ("\n", "\r"): ## Verificar
+            if char in ("\n", "\r"):  ## Verificar
                 cursor.insertBlock()
                 continue
 
@@ -321,7 +306,7 @@ class EditorWidget(QTextEdit):
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
         # block_format = QTextBlockFormat()
-        # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)        
+        # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.blockSignals(False)
 
     def _applyMargin(self):
@@ -358,78 +343,9 @@ class EditorWidget(QTextEdit):
 
             painter.fillRect(page_rect, self._page_color)
             # painter.fillRect(page_rect, Qt.GlobalColor.white)
-            painter.setPen(QPen(QColor("#cccccc"), 2)) # La línea entre páginas
+            painter.setPen(QPen(QColor("#cccccc"), 2))  # La línea entre páginas
             painter.drawRect(page_rect)
 
         painter.end()
 
         super().paintEvent(event)
-
-    # RESPALDO
-
-    # def _insert_image(self, pressed_char: str, target_char: str):
-    ## Requiere definir una escala, o manejar dinámicamente la escala de las imágenes
-
-    #     if not self._symbol_mapper.has_image(target_char):
-    #         return False
-    #     image_format = QTextImageFormat()
-    #     image_format.setName(self._symbol_mapper.get_image_path(target_char))
-    #     image_format.setWidth(32 * self.m_imageScale)
-    #     image_format.setHeight(32 * self.m_imageScale)
-    #     image_format.setVerticalAlignment(
-    #         QTextCharFormat.VerticalAlignment.AlignMiddle
-    #     )
-    #     user_prop_char = int(QTextFormat.Property.UserProperty) + 1
-    #     user_prop_id = int(QTextFormat.Property.UserProperty) + 2
-
-    #     image_format.setProperty(user_prop_char, pressed_char)
-    #     image_format.setProperty(user_prop_id, self.m_image_counter)
-    #     self.m_image_counter += 1
-    #     cursor = self.textCursor()
-    #     formato_actual = self.currentCharFormat()
-    #     formato_actual.setFont(self.font())
-    #     cursor.setCharFormat(formato_actual)
-    #     cursor.insertImage(image_format)
-    #     self.setTextCursor(cursor)
-    #     return True
-
-    # def switchToTextView(self):
-    #     if self._is_text_view_mode:
-    #         return
-    #     self._is_text_view_mode = True
-
-    #     cursor = self.textCursor()
-    #     cursor_position = cursor.position()
-
-    #     self.blockSignals(True)
-    #     plain_text_accumulator = []
-
-    #     block = self.document().begin()
-    #     user_prop_key = int(QTextFormat.Property.UserProperty) + 1
-
-    #     while block.isValid():
-    #         iterator = block.begin()
-    #         while not iterator.atEnd():
-    #             fragment = iterator.fragment()
-    #             if fragment.isValid():
-    #                 char_format = fragment.charFormat()
-    #                 if char_format.isImageFormat():
-    #                     img_format = char_format.toImageFormat()
-    #                     original_char = img_format.property(user_prop_key)
-    #                     if original_char:
-    #                         plain_text_accumulator.append(str(original_char))
-    #                 else:
-    #                     plain_text_accumulator.append(fragment.text())
-    #             iterator += 1
-
-    #         block = block.next()
-    #         if block.isValid():
-    #             plain_text_accumulator.append("\n")
-
-    #     self.setPlainText("".join(plain_text_accumulator))
-    #     self._applyMargin()
-
-    #     # cursor.setPosition(cursor_position)
-    #     # self.setTextCursor(cursor)
-
-    #     self.blockSignals(False)

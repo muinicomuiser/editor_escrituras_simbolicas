@@ -17,6 +17,7 @@ dev = [
     "pyinstaller==6.21.0",
     "pytest==8.1.1",
     "ruff==0.3.4",
+    "watchfiles>=1.2.0",
 ]
 
 [tool.poe.tasks]

@@ -1,5 +1,5 @@
 class Config:
-    WIDTH, HEIGHT = 768, 1024
+    WIDTH, HEIGHT = 768, 980
     ASSETS_DIR = "assets"
     DEFAULT_ASSETS_DIR = "default_set"
     APP_VERSION = "0.1.1"
@@ -9,9 +9,10 @@ class Config:
     # ASSETS_PATH = PROJECT_ROOT / ASSETS_DIR
 
     CHARACTERS = {
-            "single": list("abcdefghijklmnñopqrstuvwxyz"),
-            "compound": ["ch", "ll"]
-        }
+        "single": list("abcdefghijklmnñopqrstuvwxyz"),
+        "compound": ["ch", "ll"],
+    }
+
 
 def load_config():
     config = Config()

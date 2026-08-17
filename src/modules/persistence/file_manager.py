@@ -4,7 +4,8 @@ from modules.shared.models.project_model import ProjectModel
 
 # ---- LÓGICA DE ARCHIVOS (PERSISTENCIA Y EXPORTACIÓN) ----
 
-## Anotación: El DTO es un contrato entre esta clase y el sistema de archivos o persistencia, 
+
+## Anotación: El DTO es un contrato entre esta clase y el sistema de archivos o persistencia,
 # no participa en otras partes de la aplicación
 class FileManager:
     def __init__(self):
@@ -19,7 +20,11 @@ class FileManager:
         self._saved = True
 
     def get_current_filename(self):
-        return self._current_filename.removesuffix(self._file_extension) if self._current_filename else None
+        return (
+            self._current_filename.removesuffix(self._file_extension)
+            if self._current_filename
+            else None
+        )
 
     def get_file_extension(self):
         return self._file_extension
@@ -40,7 +45,7 @@ class FileManager:
             raise FileNotFoundError("No hay ruta asignada.")
 
         if not self._saved:
-            dto: SavedFileDTO = self._toDTO(entity)            
+            dto: SavedFileDTO = self._toDTO(entity)
             with open(self._current_filename, "w", encoding="utf-8") as f:
                 f.write(dto.model_dump_json(indent=2))
             self._saved = True
@@ -56,13 +61,12 @@ class FileManager:
         self._saved = True
         self._current_filename = file_name
 
-
     def _toDTO(self, entity: ProjectModel) -> SavedFileDTO:
         return SavedFileDTO(
             version=entity.version,
             collectionName=entity.collectionName,
             content=entity.content,
-            imageSize=entity.imageSize
+            imageSize=entity.imageSize,
         )
 
     def _toDomain(self, dto: SavedFileDTO) -> ProjectModel:
@@ -70,5 +74,5 @@ class FileManager:
             version=dto.version,
             collectionName=dto.collectionName,
             content=dto.content,
-            imageSize=dto.imageSize
+            imageSize=dto.imageSize,
         )
