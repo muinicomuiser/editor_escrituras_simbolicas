@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from modules.symbols.symbol_drop_surface import SymbolDropSurface
-from modules.persistence.symbols_collections_file_manager import (
-    SymbolsCollectionFileManager,
+from modules.persistence.symbols_collections_repository import (
+    SymbolsCollectionRepository,
 )
 from modules.symbols.symbol_mapper import SymbolMapper
 from modules.shared.models.symbol_collection_model import SymbolCollectionModel
@@ -61,7 +61,7 @@ class SymbolSelectorWindow(QMainWindow):
         self.setCentralWidget(self._scroll_area)
 
         # Persistencia
-        self._collection_file_manager = SymbolsCollectionFileManager()
+        self._collections_repository = SymbolsCollectionRepository()
         self._collections_persistence_dir = Path(
             getattr(sys, "_MEIPASS", Path(".").absolute()), "data/simbolos"
         )
@@ -77,14 +77,6 @@ class SymbolSelectorWindow(QMainWindow):
         self.setWindowTitle("Editor de colección de símbolos")
         self.resize(self._base_size)
         self.setMinimumSize(self._base_size)
-        # self.setStyleSheet("""
-        #     #SymbolDropContainer {
-        #         border: 1px solid #888888;
-        #     }
-        #     #SymbolDropSurface {
-        #         background-color: #ffffff;
-        #     }
-        # """)
 
     def get_current_collection_name(self):
         return (
@@ -98,16 +90,12 @@ class SymbolSelectorWindow(QMainWindow):
         # self.deleteLater() # Pensar si es necesario destruir el editor, si los pixmaps los conserva el mapper
         event.accept()
 
-    # def _set_symbol(self, char, image_path): # Trabajando acá
-    #     if not is_saved:
-    #         self._collection_file_manager.set_to_unsaved()
-
     ### Acá también hay que revisar lo que pasa si el directorio de la colección no existe.
     def _on_collection_selected(self, index: int):
         if index < 0:
             return
 
-        if not self._collection_file_manager.is_saved():
+        if not self._collections_repository.is_saved():
             button = self._unsaved_changes_messagebox()
             if button == QMessageBox.StandardButton.Cancel:
                 return
@@ -123,7 +111,7 @@ class SymbolSelectorWindow(QMainWindow):
         if selected_collection is not None:
             self._clear_surfaces()
             self._current_collection = selected_collection
-            dir_path = self._collection_file_manager.get_collections_persistence_dir().joinpath(
+            dir_path = self._collections_repository.get_collections_persistence_dir().joinpath(
                 selected_collection.directory
             )
             for path in dir_path.iterdir():
@@ -133,7 +121,7 @@ class SymbolSelectorWindow(QMainWindow):
                 if drop_surface:
                     drop_surface.set_image(char_image_path)
             self._set_mapper_collection_symbols()
-            self._collection_file_manager.set_to_saved()
+            self._collections_repository.set_to_saved()
             self.symbols_changed.emit()
         else:
             # Caso donde seleccionan el placeholder ("Selecciona una colección...")
@@ -158,7 +146,7 @@ class SymbolSelectorWindow(QMainWindow):
 
     ## Falta el caso en que las superficies estén vacías y se haya modificado una
     def _on_create_collection(self):
-        if not self.is_empty() and not self._collection_file_manager.is_saved():
+        if not self.is_empty() and not self._collections_repository.is_saved():
             button = self._unsaved_changes_messagebox()
             if button == QMessageBox.StandardButton.Cancel:
                 return
@@ -180,10 +168,6 @@ class SymbolSelectorWindow(QMainWindow):
         )
         return button
 
-    # def _on_create_collection(self):
-    #     self._clear_collection()
-    #     self.saved_symbols_list_box.setCurrentIndex(-1)
-    #     # self.symbols_changed.emit()
     def _clear_collection(self):
         self.saved_symbols_list_box.setCurrentIndex(-1)
         self._current_collection = {}
@@ -206,7 +190,7 @@ class SymbolSelectorWindow(QMainWindow):
             if ok:
                 new_dir_name = self._generate_dir_name(new_name)
 
-                saved_collection = self._collection_file_manager.find_by_name(new_name)
+                saved_collection = self._collections_repository.findByName(new_name)
                 while saved_collection:
                     new_name, ok = QInputDialog.getText(
                         get_name_widget,
@@ -214,7 +198,7 @@ class SymbolSelectorWindow(QMainWindow):
                         f"El nombre {new_name} ya está guardado, elige otro:",
                     )
                     if ok:
-                        saved_collection = self._collection_file_manager.find_by_name(
+                        saved_collection = self._collections_repository.findByName(
                             new_name
                         )
                         new_name
@@ -224,8 +208,8 @@ class SymbolSelectorWindow(QMainWindow):
                 collection = SymbolCollectionModel(
                     collection_name=new_name, directory=new_dir_name
                 )
-                self._collection_file_manager.set_to_unsaved()
-                self._collection_file_manager.update(
+                self._collections_repository.set_to_unsaved()
+                self._collections_repository.update(
                     self._current_collection.collection_name, collection
                 )
                 self._current_collection = collection
@@ -240,7 +224,7 @@ class SymbolSelectorWindow(QMainWindow):
     def _on_save_collection(self):
         if not self._current_collection:
             self._on_save_collection_as()
-        elif self._collection_file_manager.is_saved():
+        elif self._collections_repository.is_saved():
             pass
         else:
             button = QMessageBox.question(
@@ -255,7 +239,7 @@ class SymbolSelectorWindow(QMainWindow):
 
     def _save_collection(self):
         collection_dir = (
-            self._collection_file_manager._collections_persistence_dir.joinpath(
+            self._collections_repository._collections_persistence_dir.joinpath(
                 self._current_collection.directory
             )
         )
@@ -269,7 +253,7 @@ class SymbolSelectorWindow(QMainWindow):
             if not surface.has_symbol() and filename:
                 Path(collection_dir.joinpath(filename)).unlink(missing_ok=True)
             surface.save_to_file(collection_dir)
-        self._collection_file_manager.set_to_saved()
+        self._collections_repository.set_to_saved()
 
     def _on_save_collection_as(self):  ## Repasar
 
@@ -286,7 +270,7 @@ class SymbolSelectorWindow(QMainWindow):
         if not ok:
             return
 
-        saved_collection = self._collection_file_manager.find_by_name(new_name)
+        saved_collection = self._collections_repository.findByName(new_name)
         while saved_collection:
             new_name, ok = QInputDialog.getText(
                 get_name_widget,
@@ -294,7 +278,7 @@ class SymbolSelectorWindow(QMainWindow):
                 f"El nombre {new_name} ya está guardado, elige otro:",
             )
             if ok:
-                saved_collection = self._collection_file_manager.find_by_name(new_name)
+                saved_collection = self._collections_repository.findByName(new_name)
                 new_name
             else:
                 return
@@ -304,14 +288,14 @@ class SymbolSelectorWindow(QMainWindow):
             collection_name=new_name, directory=new_dir
         )
         collection_dir = (
-            self._collection_file_manager._collections_persistence_dir.joinpath(new_dir)
+            self._collections_repository._collections_persistence_dir.joinpath(new_dir)
         )
         if not collection_dir.is_dir():
             collection_dir.mkdir(parents=True, exist_ok=True)
         for surface in self._drop_surfaces.values():
             surface.save_to_file(collection_dir)
 
-        self._collection_file_manager.add_collection(new_collection)
+        self._collections_repository.save(new_collection)
         self.saved_symbols_list_box.addItem(
             new_collection.collection_name, new_collection
         )
@@ -331,7 +315,7 @@ class SymbolSelectorWindow(QMainWindow):
             buttons=QMessageBox.StandardButton.No | QMessageBox.StandardButton.Yes,
         )
         if button == QMessageBox.StandardButton.Yes:
-            self._collection_file_manager.delete(
+            self._collections_repository.delete(
                 self._current_collection.collection_name
             )
             self.saved_symbols_list_box.removeItem(
@@ -357,8 +341,7 @@ class SymbolSelectorWindow(QMainWindow):
             self._symbol_mapper.set_pixmap(char, surface.pixmap)
 
     def _load_collections_list(self):
-        collections_file = self._collection_file_manager.openFile()
-        self._collections = collections_file.collections
+        self._collections = self._collections_repository.findAll()
 
     def _setup_toolbar(self):
         toolbar = QToolBar("Barra de Herramientas Symbols", self)
@@ -421,7 +404,7 @@ class SymbolSelectorWindow(QMainWindow):
             drop_clear_button = QPushButton("Remover")
             drop_clear_button.clicked.connect(drop_surface.clear)
             drop_clear_button.clicked.connect(
-                lambda: self._collection_file_manager.set_to_unsaved()
+                lambda: self._collections_repository.set_to_unsaved()
             )
             drop_layout.addWidget(drop_clear_button)
 
@@ -430,7 +413,7 @@ class SymbolSelectorWindow(QMainWindow):
             drop_container.setObjectName(self._drop_container_object_name)
             drop_surface.setObjectName(self._drop_container_surface_object_name)
             drop_surface.image_dropped.connect(
-                lambda: self._collection_file_manager.set_to_unsaved()
+                lambda: self._collections_repository.set_to_unsaved()
             )
 
             row, col = idx // self._columns_count, idx % self._columns_count

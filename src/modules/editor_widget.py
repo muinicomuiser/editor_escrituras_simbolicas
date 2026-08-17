@@ -86,10 +86,6 @@ class EditorWidget(QTextEdit):
         fuente.setPointSize(fontSize)
         fuente.setWordSpacing(float(fontSize))
         self.setFont(fuente)
-        font_metrics = QFontMetrics(self.font())
-        font_width = font_metrics.horizontalAdvance("W")
-        # nueva_escala = float(font_width) / 24.0
-        # self.setImageScale(nueva_escala)
 
     def set_page_color(self, color: Qt.GlobalColor):
         self._page_color = color
@@ -99,17 +95,6 @@ class EditorWidget(QTextEdit):
     def setContent(self, plain_text_content: str):
         self.clear()
         self.setPlainText(plain_text_content)
-
-    def setAssetsDirectory(self, path: str):  ## Revisar
-
-        self._symbol_mapper.load_from_directory(path)
-
-        if not self._is_text_view_mode and not self.document().isEmpty():
-            self.switchToTextView()
-            self.switchToImageView()
-
-    def getAssetsDirectory(self) -> str:
-        return self._symbol_mapper.get_current_directory()
 
     def _to_clean_char(self, char: str):
         tildes = {
@@ -239,8 +224,6 @@ class EditorWidget(QTextEdit):
         if not inserted_image:
             super().inputMethodEvent(event)
         self.update()
-        # super().inputMethodEvent(event)
-        # self.update()
 
     def switchToTextView(self):
         if self._is_text_view_mode:
@@ -366,72 +349,3 @@ class EditorWidget(QTextEdit):
         painter.end()
 
         super().paintEvent(event)
-
-    # RESPALDO
-
-    # def _insert_image(self, pressed_char: str, target_char: str):
-    ## Requiere definir una escala, o manejar dinámicamente la escala de las imágenes
-
-    #     if not self._symbol_mapper.has_image(target_char):
-    #         return False
-    #     image_format = QTextImageFormat()
-    #     image_format.setName(self._symbol_mapper.get_image_path(target_char))
-    #     image_format.setWidth(32 * self.m_imageScale)
-    #     image_format.setHeight(32 * self.m_imageScale)
-    #     image_format.setVerticalAlignment(
-    #         QTextCharFormat.VerticalAlignment.AlignMiddle
-    #     )
-    #     user_prop_char = int(QTextFormat.Property.UserProperty) + 1
-    #     user_prop_id = int(QTextFormat.Property.UserProperty) + 2
-
-    #     image_format.setProperty(user_prop_char, pressed_char)
-    #     image_format.setProperty(user_prop_id, self.m_image_counter)
-    #     self.m_image_counter += 1
-    #     cursor = self.textCursor()
-    #     formato_actual = self.currentCharFormat()
-    #     formato_actual.setFont(self.font())
-    #     cursor.setCharFormat(formato_actual)
-    #     cursor.insertImage(image_format)
-    #     self.setTextCursor(cursor)
-    #     return True
-
-    # def switchToTextView(self):
-    #     if self._is_text_view_mode:
-    #         return
-    #     self._is_text_view_mode = True
-
-    #     cursor = self.textCursor()
-    #     cursor_position = cursor.position()
-
-    #     self.blockSignals(True)
-    #     plain_text_accumulator = []
-
-    #     block = self.document().begin()
-    #     user_prop_key = int(QTextFormat.Property.UserProperty) + 1
-
-    #     while block.isValid():
-    #         iterator = block.begin()
-    #         while not iterator.atEnd():
-    #             fragment = iterator.fragment()
-    #             if fragment.isValid():
-    #                 char_format = fragment.charFormat()
-    #                 if char_format.isImageFormat():
-    #                     img_format = char_format.toImageFormat()
-    #                     original_char = img_format.property(user_prop_key)
-    #                     if original_char:
-    #                         plain_text_accumulator.append(str(original_char))
-    #                 else:
-    #                     plain_text_accumulator.append(fragment.text())
-    #             iterator += 1
-
-    #         block = block.next()
-    #         if block.isValid():
-    #             plain_text_accumulator.append("\n")
-
-    #     self.setPlainText("".join(plain_text_accumulator))
-    #     self._applyMargin()
-
-    #     # cursor.setPosition(cursor_position)
-    #     # self.setTextCursor(cursor)
-
-    #     self.blockSignals(False)

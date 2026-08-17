@@ -104,15 +104,6 @@ class MainWindow(QMainWindow):
             self._editor.switchToTextView()  # Está usando este método para pintar la nueva escala???
             self._editor.switchToImageView()
 
-    ## Repasar.
-    ## Acá también debería iniciarse el editor de colección de símbolos
-    ## Aunque no se abra la ventana ni se actualicen las imágenes
-    ## sí debería crearse la instancia del editor de colecciones, con las superficies y sus pixmaps
-    ## Que el botón de abrir cree el editor de símbolos
-    ## Que el botón de elegir simbolos tenga tres caminos:
-    ## Crear si no se ha abierto ningún archivo (en blanco)
-    ## Hacer update y show si se ha abierto un archivo con una colección elegida
-
     def onOpenFile(self):  ## CHECK (Solo falta revisar el paso de los switchs)
 
         file_name, _ = QFileDialog.getOpenFileName(
@@ -186,7 +177,6 @@ class MainWindow(QMainWindow):
                 self, "Error", f"No se pudo crear el archivo de proyecto: {str(error)}"
             )
 
-    ### Se está guardando con .json
     def onExportPdf(self):
 
         current_filename = self.file_manager.get_current_filename()
@@ -279,63 +269,8 @@ class MainWindow(QMainWindow):
             self, "Éxito", f"Se han exportado {total_pages} imágenes individuales."
         )
 
-    ##
-    ## Acá veré cómo funciona lo del drag
-    ##
     def _open_symbols_window(self):
         self._symbol_collection_editor.show()
-        # if self._symbol_collection_editor is None:
-        # self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self)
-        # self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)
-        # self._symbol_collection_editor.show()
-        # else:
-        #     self._symbol_collection_editor.show()
-        # self._symbol_collection_editor.destroyed.connect(self._on_destroyed_symbol_selector)
-
-    # def _on_destroyed_symbol_selector(self):
-    #     self._symbol_collection_editor = None
-    ##
-    ## Hasta acá vi cómo funciona lo del drag
-    ##
-
-    # def onChangeSymbols(self):
-
-    #     files = QFileDialog.getOpenFileNames(
-    #         self,
-    #         "Selecciona los símbolos",
-    #         self._editor.getAssetsDirectory()
-    #     )
-    #     if files:
-    #         print(files)
-    #         dir = os.path.dirname(files[0][0])
-    #         print(dir)
-    #     else:
-    #         return
-
-    #     # directory = QFileDialog.getExistingDirectory(
-    #     #     self,
-    #     #     "Seleccionar Directorio de Símbolos",
-    #     #     self._editor.getAssetsDirectory(),
-    #     #     QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
-    #     # )
-    #     # if directory:
-    #     #     self._editor.setAssetsDirectory(directory)
-    #     #     QMessageBox.information(
-    #     #         self, "Set Cambiado", f"Se han cargado los símbolos desde: {directory}"
-    #     #     )
-
-    # def onChangeDirectory(self):
-    #     directory = QFileDialog.getExistingDirectory(
-    #         self,
-    #         "Seleccionar Directorio de Símbolos",
-    #         self._editor.getAssetsDirectory(),
-    #         QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
-    #     )
-    #     if directory:
-    #         self._editor.setAssetsDirectory(directory)
-    #         QMessageBox.information(
-    #             self, "Set Cambiado", f"Se han cargado los símbolos desde: {directory}"
-    #         )
 
     def _tutorial_window(self):
 
@@ -345,14 +280,26 @@ class MainWindow(QMainWindow):
             "Instrucciones",
             textwrap.dedent("""
             <b>Elegir símbolos</b><br>
-            1. Presiona 'Elegir Símbolos'.<br>
-            2. Elige la carpeta donde tienes tus imágenes.<br>
-            * Cada imagen debe tener como nombre la letra que representa en minúscula. Por ejemplo 'a.png', 'b.jpg'.<br>
+            Presiona 'Elegir Símbolos'.<br>
+            Se abrirá una ventana que te permite abrir, crear y modificar colecciones de símbolos, arrastrando imágenes a cada letra..<br>
             <br>
             <b>Cambiar modo de vista</b><br>
 
             Presiona el botón 'Modo Texto' o 'Modo Símbolos' para cambiar el modo en que se muestran los símbolos en la hoja.<br>
             """),
+        )
+    def _info_window(self):
+
+        QMessageBox().information(
+            # mensaje = QMessageBox.information(
+            self,
+            "Información",
+            textwrap.dedent("""
+            <b>Sobre el editor de escrituras simbólicas</b><br>
+            Este programa fue realizado a partir del trabajo artístico de Valentina Morales (IG: @duerme_volantina), asociado a sus reflexiones sobre la escritura y las cosas pequeñas del mundo.<br>
+
+            Autor: Nicolás Donoso (IG: @niconicodonoso)
+            """)
         )
 
     def _create_actions(self):
@@ -361,6 +308,7 @@ class MainWindow(QMainWindow):
         self._openAction = QAction("Abrir...", self)
         self._openAction.setShortcut(QKeySequence.StandardKey.Open)
         self._openAction.triggered.connect(self.onOpenFile)
+        
         # Guardar / Guardar como
         self._saveAction = QAction("Guardar", self)
         self._saveAction.setShortcut(QKeySequence.StandardKey.Save)
@@ -378,8 +326,6 @@ class MainWindow(QMainWindow):
         # Configuración / Vistas
         self._changeDirAction = QAction("Elegir Símbolos", self)
         self._changeDirAction.triggered.connect(self._open_symbols_window)
-        # self._changeDirAction.triggered.connect(self.onChangeSymbols)
-        # self._changeDirAction.triggered.connect(self.onChangeDirectory)
 
         self._toggleViewAction = QAction("Modo Símbolos", self)
         self._toggleViewAction.setCheckable(True)
