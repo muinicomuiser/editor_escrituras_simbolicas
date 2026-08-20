@@ -6,6 +6,7 @@
 - Botón de cambio de modo de vista texto - símbolo
 - Editor de colección de símbolos que permite:
     - Asignar imagen a cada letra, arrastrando imágenes a su superficie respectiva
+    - Lás imágenes con canal alfa ajustan el contenido opaco de la imagen, recortando la sección vacía externa
     - Remover la imagen actual de cada letra
     - Crear nueva colección
     - Guardar coleccion de símbolos y guardar como nueva colección de símbolos
