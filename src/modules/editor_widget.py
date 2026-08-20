@@ -220,6 +220,7 @@ class EditorWidget(QTextEdit):
             return
         self._is_text_view_mode = True
 
+        scroll_position = self.verticalScrollBar().value()
         cursor = self.textCursor()
         cursor_position = cursor.position()
 
@@ -266,6 +267,7 @@ class EditorWidget(QTextEdit):
         cursor_global.mergeBlockFormat(block_format)
 
         self._applyMargin()
+        self.verticalScrollBar().setValue(scroll_position)        
         self.blockSignals(False)
 
     def switchToImageView(self):
@@ -273,15 +275,15 @@ class EditorWidget(QTextEdit):
         if not self._is_text_view_mode:
             return
         self._is_text_view_mode = False
-        self.blockSignals(True)
-
+        scroll_position = self.verticalScrollBar().value()
         cursor = self.textCursor()
         cursor_position = cursor.position()
+        self.blockSignals(True)
 
         current_text = self.toPlainText()
         self.clear()
 
-        cursor = self.textCursor()
+        # cursor = self.textCursor()
 
         for char in current_text:
             if char in ("\n", "\r"):  ## Verificar
@@ -292,11 +294,12 @@ class EditorWidget(QTextEdit):
             if not self._symbol_mapper.has_image(target_char):
                 cursor.insertText(char)
             self._insert_symbol_image(char, target_char)
-        self._applyMargin()
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
+        self._applyMargin()
         # block_format = QTextBlockFormat()
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.verticalScrollBar().setValue(scroll_position)
         self.blockSignals(False)
 
     def _applyMargin(self):
@@ -352,6 +355,7 @@ class EditorWidget(QTextEdit):
         self.setLineWrapMode(QTextEdit.LineWrapMode.FixedPixelWidth)
         self.setLineWrapColumnOrWidth(self.page_width)
 
+
         ## Monospace cross platform
         fuente_original = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
         fuente_original.setPointSize(self.font().pointSize() * scale)
@@ -374,12 +378,13 @@ class EditorWidget(QTextEdit):
         self.margin = int(self.margin * scale)
         self.innerPadding = int(self.innerPadding * scale)
         # self.doc = self.document()
-        self.doc.setPageSize(QSize(self.page_width, self.page_height))
-        self.document().setPageSize(QSize(self.page_width, self.page_height))
         # self._applyMargin()
 
         # 3. Estilo Visual
         self._applyMargin()
+        self.doc.setPageSize(QSize(self.page_width, self.page_height))
+        self.document().setPageSize(QSize(self.page_width, self.page_height))
+
         self.setFixedWidth(self.page_width + self.innerPadding * 2)
         self.switchToTextView()
         self.switchToImageView()

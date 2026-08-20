@@ -12,14 +12,15 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 from PySide6.QtGui import (
+    QAbstractTextDocumentLayout,
     QAction,
     QKeySequence,
-    QPageSize,
+    QPalette,
     QPdfWriter,
     QPainter,
     QPixmap,
 )
-from PySide6.QtCore import QSize, QSizeF, Qt, QMarginsF, QRectF
+from PySide6.QtCore import QSize, Qt, QMarginsF, QRectF
 from pydantic import ValidationError
 
 from modules.config.config import Config
@@ -73,7 +74,6 @@ class MainWindow(QMainWindow):
         self._create_menu_bar()
 
     def onToggleViewChanged(self, checked: bool):  # CHECK
-
         if checked:
             self._toggleViewAction.setText("Modo Texto")
             self._editor.switchToTextView()
@@ -253,6 +253,7 @@ class MainWindow(QMainWindow):
             self._toggleViewAction.setChecked(False)
 
         razon = 300//96
+        self._editor.setTextColor("#000000")
         self._editor.change_scale(razon)
 
 
@@ -277,8 +278,29 @@ class MainWindow(QMainWindow):
             painter.restore()
             painter.end()
 
-            page_file_name = f"{base_path}_{i + 1}.png"
+            page_file_name = f"{base_path}_{i + 1}_imagen.png"
             pixmap.save(page_file_name, "PNG")
+
+        self._toggleViewAction.setChecked(True)        
+        self._editor.switchToTextView() 
+        for i in range(total_pages):
+            pixmap = QPixmap(page_width, page_height)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            painter.save()
+            painter.translate(0, -(i * page_height))
+            
+            painter.setClipRect(0, i * page_height, page_width, page_height)
+            ctx = QAbstractTextDocumentLayout.PaintContext()
+            ctx.palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Text, "#333333")
+            ctx.clip = QRectF(0, 0, page_width, total_height)
+            self._editor.document().documentLayout().draw(painter, ctx)
+            painter.restore()
+            painter.end()
+            page_file_name = f"{base_path}_{i + 1}_texto.png"
+            pixmap.save(page_file_name, "PNG")
+
+        self._toggleViewAction.setChecked(False)   
 
         # QMessageBox.information(
         #     self, "Éxito", f"Se han exportado {total_pages} imágenes individuales."
