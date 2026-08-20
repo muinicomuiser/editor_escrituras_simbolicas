@@ -13,7 +13,7 @@ def main():
 
     ### Anotación 1: Por refinar esta parte
     ## Forzar a usar un servidor gráfico específico (tengo problemas en linux al arrastrar imágenes)
-    os.environ["QT_QPA_PLATFORM"] = "xcb"
+    #  os.environ["QT_QPA_PLATFORM"] = "xcb"
     ### Fin Anotación 1
 
     app = QApplication(sys.argv)

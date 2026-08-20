@@ -1,3 +1,10 @@
+Para fix 1.0.1:
+- Abrir archivos de trabajo cuya coleicción ya no existe (ahora da un error)
+- Preguuntar por guardar trabajo no guardado al cerrar la aplicacion
+
+
+Conjunto de TO DO:
+
 Tests:
 - Probar con assets a los que le falten letras.
 - Probar con assets de distintos tamaños.

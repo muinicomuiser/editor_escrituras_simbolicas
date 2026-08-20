@@ -38,7 +38,7 @@ class SymbolDropSurface(QWidget):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
             image_path = event.mimeData().urls()[0].toLocalFile()
-            self.set_image(image_path)
+            self.set_symbol(image_path)
             self.image_dropped.emit()
             event.accept()
 
