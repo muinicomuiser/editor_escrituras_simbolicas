@@ -19,7 +19,7 @@ from PySide6.QtGui import (
     QPainter,
     QPixmap,
 )
-from PySide6.QtCore import Qt, QMarginsF, QRectF
+from PySide6.QtCore import QSize, QSizeF, Qt, QMarginsF, QRectF
 from pydantic import ValidationError
 
 from modules.config.config import Config
@@ -94,6 +94,7 @@ class MainWindow(QMainWindow):
                 new_size_str
             )  # Falta manejar excepciones o casos en que sea un str que no pueda convertirse a int
             self._editor.setFontSize(new_size)
+
             if not self._toggleViewAction.isChecked():
                 self._editor.switchToTextView()  # Está usando este método para pintar la nueva escala???
                 self._editor.switchToImageView()
@@ -118,6 +119,7 @@ class MainWindow(QMainWindow):
             )
             if project.imageSize is not None:
                 self._fontSizeBox.setCurrentText(f"{project.imageSize}")
+                self._editor.setFontSize(project.imageSize)
 
             if self._toggleViewAction.isChecked():
                 self._editor.setContent(project.content)
@@ -196,19 +198,27 @@ class MainWindow(QMainWindow):
         if self._toggleViewAction.isChecked():
             self._toggleViewAction.setChecked(False)
 
+        ## Esta sección hay que revisarla y mejorarla.
+        ## Está escalando, pintando y restaurando después de pintar.
+        ## Tengo que ver cómo manejar bien la escala y la resolución, para
+        ## que sea dinámica.
+        razon = 300//96
+        self._editor.change_scale(razon)
         pdf_writer = QPdfWriter(file_name)
-        pdf_writer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
+        pdf_writer.setPageSize(QSize(self._editor.page_width, self._editor.page_height))
         pdf_writer.setPageMargins(QMarginsF(0, 0, 0, 0))
-        pdf_writer.setResolution(96)
+        pdf_writer.setResolution(74)
 
         painter = QPainter()
         if not painter.begin(pdf_writer):
             QMessageBox.critical(self, "Error", "No se pudo activar el PDF.")
             return
 
+
         page_height = self._editor.page_height
         page_width = self._editor.page_width
         total_height = self._editor.document().size().height()
+
         total_pages = max(1, math.ceil(float(total_height) / page_height))
 
         for i in range(total_pages):
@@ -225,6 +235,7 @@ class MainWindow(QMainWindow):
             painter.restore()
 
         painter.end()
+        self._editor.change_scale(1/razon) # Parte del experimento
 
     def onExportImage(self):
         file_name, _ = QFileDialog.getSaveFileName(
@@ -240,6 +251,10 @@ class MainWindow(QMainWindow):
 
         if self._toggleViewAction.isChecked():
             self._toggleViewAction.setChecked(False)
+
+        razon = 300//96
+        self._editor.change_scale(razon)
+
 
         page_height = self._editor.page_height
         page_width = self._editor.page_width
@@ -265,9 +280,12 @@ class MainWindow(QMainWindow):
             page_file_name = f"{base_path}_{i + 1}.png"
             pixmap.save(page_file_name, "PNG")
 
-        QMessageBox.information(
-            self, "Éxito", f"Se han exportado {total_pages} imágenes individuales."
-        )
+        # QMessageBox.information(
+        #     self, "Éxito", f"Se han exportado {total_pages} imágenes individuales."
+        # )
+
+
+        self._editor.change_scale(1/razon) ## Restaurar tamaño original
 
     def _open_symbols_window(self):
         self._symbol_collection_editor.show()

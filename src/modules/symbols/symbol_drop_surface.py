@@ -34,12 +34,6 @@ class SymbolDropSurface(QWidget):
     def has_symbol(self):
         return not self.pixmap.isNull()
 
-    # Evento que se dispara cada vez que el mouse se mueve dentro del área, por cada pixel.
-    # No es necesario para mi caso
-    # def dragMoveEvent(self, event: QDropEvent):
-    #     event.accept()
-    #     return super().dragMoveEvent(event)
-
     def dropEvent(self, event: QDropEvent):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
@@ -53,7 +47,6 @@ class SymbolDropSurface(QWidget):
         self.pixmap = QPixmap()
         self.update()
 
-    ## WIP
     def save_to_file(self, symbol_dir_path: Path) -> bool:
         """Guarda la imagen con el nombre del símbolo y la extensión de la imagen de origen en el directorio dado."""
         if self.pixmap and self.has_symbol():
@@ -66,8 +59,9 @@ class SymbolDropSurface(QWidget):
         else:
             return False
 
-    def set_image(self, image_path: str, crop: bool = True):
-
+    def set_symbol(self, image_path: str, crop: bool = True):
+        """Instancia un QPixmap a partir de una ruta de image y la fija en el Drop Surface. 
+        El parámetro <crop: bool> permite decidir si se quiere recortar la sección vacía de una imagen con canal alfa."""
         pixmap = QPixmap(image_path)
         if not pixmap.isNull():
             if crop and pixmap.hasAlphaChannel():

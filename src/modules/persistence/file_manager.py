@@ -52,7 +52,6 @@ class FileManager:
 
     def saveFileAs(self, file_name: str, entity: ProjectModel):
 
-        # file_extension = f"{self._file_extension}"
         if not file_name.lower().endswith(self._file_extension):
             file_name += self._file_extension
         dto: SavedFileDTO = self._toDTO(entity)

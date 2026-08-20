@@ -1,4 +1,3 @@
-import re
 import unicodedata
 
 from PySide6.QtWidgets import QTextEdit
@@ -20,7 +19,7 @@ from PySide6.QtGui import (
     QColor,
     QTextOption,
 )
-from PySide6.QtCore import QRectF, QUrl, Qt, QSizeF
+from PySide6.QtCore import QRectF, QSize, QUrl, Qt, QSizeF
 from modules.config.config import Config
 from modules.symbols.symbol_mapper import SymbolMapper
 
@@ -36,6 +35,7 @@ class EditorWidget(QTextEdit):
         self.setObjectName("EditorWidget")
         self.page_height = self.config.HEIGHT
         self.page_width = self.config.WIDTH
+
 
         self._init_font_size = 60
         self._is_text_view_mode = False
@@ -86,7 +86,7 @@ class EditorWidget(QTextEdit):
     def setFontSize(self, fontSize: int):
         fuente = self.font()
         fuente.setPointSize(fontSize)
-        fuente.setWordSpacing(float(fontSize))
+        fuente.setWordSpacing(0) ## Es el espaciado adicional al ancho de las letras al separar palabras.
         self.setFont(fuente)
 
     def set_page_color(self, color: Qt.GlobalColor):
@@ -332,10 +332,54 @@ class EditorWidget(QTextEdit):
             page_rect = QRectF(x_offset, page_top, self.page_width, self.page_height)
 
             painter.fillRect(page_rect, self._page_color)
-            # painter.fillRect(page_rect, Qt.GlobalColor.white)
             painter.setPen(QPen(QColor("#cccccc"), 2))  # La línea entre páginas
             painter.drawRect(page_rect)
 
         painter.end()
 
         super().paintEvent(event)
+
+
+    ## Método funcionando. Queda limpiarlo.
+    def change_scale(self, scale):
+
+        self.page_height = int(self.page_height  * scale)
+        self.page_width = int(self.page_width * scale)
+        # self._init_font_size = 60 * scale
+        viewport_width = self.viewport().width() * scale
+        self.viewport().setFixedWidth(viewport_width * scale)
+        self.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
+        self.setLineWrapMode(QTextEdit.LineWrapMode.FixedPixelWidth)
+        self.setLineWrapColumnOrWidth(self.page_width)
+
+        ## Monospace cross platform
+        fuente_original = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        fuente_original.setPointSize(self.font().pointSize() * scale)
+        fuente_original.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 140)
+        self.setFont(fuente_original)
+        font_metrics = QFontMetrics(self.font())
+        font_height = font_metrics.height()
+
+        block_format = QTextBlockFormat()
+
+        ### Sirve para setear la alineación del documento completo.
+        ### El problema es que no logro que el pintado de las imágenes se ajuste a la alineación
+        # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter) #### Sirve para setear la alineación del documento completo.
+
+        block_format.setLineHeight(float(font_height), 2)
+        cursor = self.textCursor()
+        cursor.setBlockFormat(block_format)
+        self.setTextCursor(cursor)
+
+        self.margin = int(self.margin * scale)
+        self.innerPadding = int(self.innerPadding * scale)
+        # self.doc = self.document()
+        self.doc.setPageSize(QSize(self.page_width, self.page_height))
+        self.document().setPageSize(QSize(self.page_width, self.page_height))
+        # self._applyMargin()
+
+        # 3. Estilo Visual
+        self._applyMargin()
+        self.setFixedWidth(self.page_width + self.innerPadding * 2)
+        self.switchToTextView()
+        self.switchToImageView()

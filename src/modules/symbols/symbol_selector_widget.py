@@ -119,7 +119,7 @@ class SymbolSelectorWindow(QMainWindow):
                 char = path.name.replace(path.suffix, "")
                 drop_surface = self._drop_surfaces.get(char, None)
                 if drop_surface:
-                    drop_surface.set_image(char_image_path)
+                    drop_surface.set_symbol(char_image_path)
             self._set_mapper_collection_symbols()
             self._collections_repository.set_to_saved()
             self.symbols_changed.emit()
