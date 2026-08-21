@@ -26,6 +26,7 @@ Correcciones:
 - Que las colecciones tengan un id, que es mejor que registrarlas con un nombre
 - Que haya un archivo de metadatos en cada carpeta de símbolos, para asociarla con id de colección
 - Manejo de excepciones y alertas al usuario, sin incomodar el uso de la aplicación
+- Mejorar sistema de compilación de ejecutable Linux/Windows/Mac (guácala Mac)
 
 Correcciones listas:
 - Posición del curso al cambiar de vista

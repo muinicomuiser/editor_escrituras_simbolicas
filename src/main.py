@@ -27,11 +27,11 @@ def main():
 
     parser = argparse.ArgumentParser(description="Editor de escrituras simbólicas")
     parser.add_argument(
-        "-d", "--dev", help="ejecuta la aplicación con reload", action="store_true"
+        "-w", "--watch", help="ejecuta la aplicación con reload", action="store_true"
     )
     args = parser.parse_args()
 
-    # Para ejecutar en modo watch (con watchfile) usando la flag -d. Mueve la ventana a la pantalla en la posición segunda
+    # Para ejecutar en modo watch (con watchfile) usando la flag -w. Mueve la ventana a la pantalla en la posición segunda
     if args.dev:
         screens = app.screens()
         target_screen_index = 1
