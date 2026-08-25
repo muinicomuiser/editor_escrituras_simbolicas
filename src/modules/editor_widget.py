@@ -4,7 +4,6 @@ from PySide6.QtWidgets import QTextEdit
 from PySide6.QtGui import (
     QFont,
     QFontMetrics,
-    QFontMetricsF,
     QKeyEvent,
     QInputMethodEvent,
     QFontDatabase,
@@ -109,9 +108,9 @@ class EditorWidget(QTextEdit):
         if not self._symbol_mapper.has_image(target_char):
             return False
 
-        font_metrics = QFontMetricsF(self.font())
-        char_width = int(round(font_metrics.horizontalAdvance("W")))
-        char_height = int(round(font_metrics.height()))
+        font_metrics = QFontMetrics(self.font())
+        char_width = int(font_metrics.horizontalAdvance("W"))
+        char_height = int(font_metrics.height())
         # char_width = int(font_metrics.horizontalAdvance("W") * self.m_imageScale)
         # char_height = int(font_metrics.height() * self.m_imageScale)
 
@@ -259,10 +258,7 @@ class EditorWidget(QTextEdit):
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
 
-        font_metrics = QFontMetricsF(self.font())
-        font_height = font_metrics.height()
         block_format = QTextBlockFormat()
-        block_format.setLineHeight(font_height, 2)
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Aplicar el formato a todos los bloques del documento actual de golpe
         cursor_global = self.textCursor()
@@ -294,21 +290,11 @@ class EditorWidget(QTextEdit):
                 continue
 
             target_char = self._to_clean_char(char)
-            if self._symbol_mapper.has_image(target_char):
-                self._insert_symbol_image(char, target_char)
-            else:
+            if not self._symbol_mapper.has_image(target_char):
                 cursor.insertText(char)
+            self._insert_symbol_image(char, target_char)
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
-
-        font_metrics = QFontMetricsF(self.font())
-        font_height = font_metrics.height()
-        block_format = QTextBlockFormat()
-        block_format.setLineHeight(font_height, 2)
-        cursor_global = self.textCursor()
-        cursor_global.select(QTextCursor.SelectionType.Document)
-        cursor_global.mergeBlockFormat(block_format)
-
         self._applyMargin()
         # block_format = QTextBlockFormat()
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -366,70 +352,48 @@ class EditorWidget(QTextEdit):
 
     ## Método funcionando. Queda limpiarlo.
     def change_scale(self, scale):
-        if scale == 1.0:
-            return
-
-        if scale > 1.0:
-            # We are scaling up. Store original values if not already stored.
-            if not hasattr(self, "_original_values"):
-                self._original_values = {
-                    "page_height": self.page_height,
-                    "page_width": self.page_width,
-                    "margin": self.margin,
-                    "innerPadding": self.innerPadding,
-                    "font_point_size": self.font().pointSizeF(),
-                    "viewport_width": self.viewport().width()
-                }
-            
-            self.page_height = self._original_values["page_height"] * scale
-            self.page_width = int(round(self._original_values["page_width"] * scale))
-            self.margin = self._original_values["margin"] * scale
-            self.innerPadding = self._original_values["innerPadding"] * scale
-            new_font_size = self._original_values["font_point_size"] * scale
-            viewport_width = int(round(self._original_values["viewport_width"] * scale))
-        else:
-            # We are restoring. Restore original values if they exist.
-            if hasattr(self, "_original_values"):
-                self.page_height = self._original_values["page_height"]
-                self.page_width = self._original_values["page_width"]
-                self.margin = self._original_values["margin"]
-                self.innerPadding = self._original_values["innerPadding"]
-                new_font_size = self._original_values["font_point_size"]
-                viewport_width = self._original_values["viewport_width"]
-                del self._original_values
-            else:
-                # Fallback if somehow called without original values
-                self.page_height = self.page_height * scale
-                self.page_width = int(round(self.page_width * scale))
-                self.margin = self.margin * scale
-                self.innerPadding = self.innerPadding * scale
-                new_font_size = self.font().pointSizeF() * scale
-                viewport_width = int(round(self.viewport().width() * scale))
-
+        print(self.page_height)
+        self.page_height = self.page_height  * scale
+        self.page_width = int(self.page_width * scale)
+        self.margin = self.margin * scale
+        self.innerPadding = self.innerPadding * scale
+        # self._init_font_size = 60 * scale
+        viewport_width = self.viewport().width() * scale
         self.viewport().setFixedWidth(viewport_width)
         self.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
         self.setLineWrapMode(QTextEdit.LineWrapMode.FixedPixelWidth)
         self.setLineWrapColumnOrWidth(self.page_width)
 
-        ## Monospace cross platform (preserve properties, just update size)
-        fuente = self.font()
-        fuente.setPointSizeF(new_font_size)
-        fuente.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 140)
-        self.setFont(fuente)
 
-        font_metrics = QFontMetricsF(self.font())
+        ## Monospace cross platform
+        fuente_original = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        fuente_original.setPointSize(self.font().pointSize() * scale)
+        fuente_original.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 140)
+        self.setFont(fuente_original)
+        font_metrics = QFontMetrics(self.font())
         font_height = font_metrics.height()
 
         block_format = QTextBlockFormat()
-        block_format.setLineHeight(font_height, 2)
+
+        ### Sirve para setear la alineación del documento completo.
+        ### El problema es que no logro que el pintado de las imágenes se ajuste a la alineación
+        # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter) #### Sirve para setear la alineación del documento completo.
+        block_format.setLineHeight(float(font_height), 2)
         cursor = self.textCursor()
         self.blockSignals(True)
         cursor.setBlockFormat(block_format)
         self.setTextCursor(cursor)
 
+        # self.doc = self.document()
+        # self._applyMargin()
+        # 3. Estilo Visual
+        # self.doc.setPageSize(QSize(self.page_width, self.page_height))
+
+
         self._applyMargin()
         self.blockSignals(False)
-        self.setFixedWidth(self.page_width + int(round(self.innerPadding * 2)))
-        self.document().setPageSize(QSizeF(self.page_width, self.page_height))
+        self.setFixedWidth(self.page_width + self.innerPadding * 2)
+        self.document().setPageSize(QSize(self.page_width, self.page_height))
         self.switchToTextView()
         self.switchToImageView()
+        print(self.page_height)
