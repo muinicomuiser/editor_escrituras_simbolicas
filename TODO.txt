@@ -1,6 +1,6 @@
 Para versión fix 1.0.1:
-- Abrir archivos de trabajo cuya coleicción ya no existe (ahora da un error)
-- Preguuntar por guardar trabajo no guardado al cerrar la aplicacion
+++ Abrir archivos de trabajo cuya colección ya no existe (ahora da un error)
+++ Preguntar por guardar trabajo no guardado al cerrar la aplicación
 
 
 
@@ -20,15 +20,18 @@ Tests listos:
 
 Correcciones:
 - Reorganizar todo el editor en subclases
-- Optimizar el cargado y recargado de imágenes. Se revienta un poco la cpu al pasar de texto a imagen, siempre.
-- Al guardar archivos, comprobar si el directorio de símbolos o de guardado existen. También modificar os.path a Pathlib.
-- Tengo un enredo entre paths guardados como PAth y como str
+- Al guardar archivos, comprobar si el directorio de símbolos o de guardado existen. 
+- Reemplazar os.path por Pathlib.
+- Tengo un enredo entre paths guardados como Path y como str
 - Que las colecciones tengan un id, que es mejor que registrarlas con un nombre
 - Que haya un archivo de metadatos en cada carpeta de símbolos, para asociarla con id de colección
 - Manejo de excepciones y alertas al usuario, sin incomodar el uso de la aplicación
 - Mejorar sistema de compilación de ejecutable Linux/Windows/Mac (guácala Mac)
+- Descalce al exportar a pdf e imagen
 
 Correcciones listas:
+- Optimizar el cargado y recargado de imágenes. Se revienta un poco la cpu al pasar de texto a imagen, siempre.
+    ** Se conservan los pixmaps en memoria
 - Posición del curso al cambiar de vista
 - La fuente base es más alta que ancha, que las imágenes se ajusten al alto y las letras ocupen un espacio cuadrado según su dimensión mayor. Las imágenes quedan
 muy pequeñas comparadas con las fuentes
@@ -41,7 +44,7 @@ Futuras mejoras:
 
 - Agregar about
 - Opción de recortar imágenes jpg con fondo blanco
-- Recorte opcional de escción vacía para imágenes con canal alfa
+- Recorte opcional de sección vacía para imágenes con canal alfa
 - Mapear CH y LL
 - Importar y exportar colecciones. Importar colecciones al cambiar de versión de aplicación.
 

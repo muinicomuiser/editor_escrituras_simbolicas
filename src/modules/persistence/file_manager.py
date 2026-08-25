@@ -1,6 +1,8 @@
 import json
 from modules.persistence.dto.saved_file_dto import SavedFileDTO
 from modules.shared.models.project_model import ProjectModel
+from modules.utils.logger import get_logger
+# logger = get_logger(__name__)
 
 # ---- LÓGICA DE ARCHIVOS (PERSISTENCIA Y EXPORTACIÓN) ----
 
@@ -9,15 +11,21 @@ from modules.shared.models.project_model import ProjectModel
 # no participa en otras partes de la aplicación
 class FileManager:
     def __init__(self):
-        self._saved = False
+
+        self._saved = True
         self._current_filename = None
         self._file_extension = ".json"
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.info(f"Módulo Iniciado")           
 
     def set_to_unsaved(self):
         self._saved = False
 
     def set_to_saved(self):
         self._saved = True
+
+    def is_saved(self):
+        return self._saved
 
     def get_current_filename(self):
         return (
@@ -32,8 +40,8 @@ class FileManager:
     def openFile(self, file_name: str):
         with open(file_name, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
+        self.logger .info(f"Proyecto abierto: {file_name}")
         dto = SavedFileDTO.model_validate(raw_data)
-
         self._saved = True
         self._current_filename = file_name
 
@@ -42,6 +50,7 @@ class FileManager:
     def saveFile(self, entity: ProjectModel):
 
         if not self._current_filename:
+            self.logger .error(f"Error al guardar archivo: No hay ruta asignada.")  
             raise FileNotFoundError("No hay ruta asignada.")
 
         if not self._saved:
@@ -49,6 +58,7 @@ class FileManager:
             with open(self._current_filename, "w", encoding="utf-8") as f:
                 f.write(dto.model_dump_json(indent=2))
             self._saved = True
+        self.logger .info(f"Proyecto guardado: {self._current_filename}")            
 
     def saveFileAs(self, file_name: str, entity: ProjectModel):
 
@@ -57,6 +67,7 @@ class FileManager:
         dto: SavedFileDTO = self._toDTO(entity)
         with open(file_name, "w", encoding="utf-8") as f:
             f.write(dto.model_dump_json(indent=2))
+        self.logger .info(f"Proyecto guardado: {file_name}")            
         self._saved = True
         self._current_filename = file_name
 

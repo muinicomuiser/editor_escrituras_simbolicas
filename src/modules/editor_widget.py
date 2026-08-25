@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QTextEdit
 from PySide6.QtGui import (
     QFont,
     QFontMetrics,
+    QFontMetricsF,
     QKeyEvent,
     QInputMethodEvent,
     QFontDatabase,
@@ -22,6 +23,7 @@ from PySide6.QtGui import (
 from PySide6.QtCore import QRectF, QSize, QUrl, Qt, QSizeF
 from modules.config.config import Config
 from modules.symbols.symbol_mapper import SymbolMapper
+from modules.utils.logger import get_logger
 
 
 class EditorWidget(QTextEdit):
@@ -29,8 +31,6 @@ class EditorWidget(QTextEdit):
         super().__init__(parent)
         self.config = config
         self._symbol_mapper = symbol_mapper
-
-        # razon = 300 // 96
 
         self.setObjectName("EditorWidget")
         self.page_height = self.config.HEIGHT
@@ -50,6 +50,7 @@ class EditorWidget(QTextEdit):
         fuente_original = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
         fuente_original.setPointSize(self._init_font_size)
         fuente_original.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 140)
+        # fuente_original.setWordSpacing(0) ## Es el espaciado adicional al ancho de las letras al separar palabras.
         self.setFont(fuente_original)
 
         font_metrics = QFontMetrics(self.font())
@@ -83,6 +84,10 @@ class EditorWidget(QTextEdit):
         self.setFixedWidth(self.page_width + self.innerPadding * 2)
         self._page_color = Qt.GlobalColor.white
 
+        # Logger
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.info(f"Módulo Iniciado")      
+
     def setFontSize(self, fontSize: int):
         fuente = self.font()
         fuente.setPointSize(fontSize)
@@ -98,20 +103,15 @@ class EditorWidget(QTextEdit):
         self.clear()
         self.setPlainText(plain_text_content)
 
-    def _to_clean_char(self, char: str):
-        clean = char
-        if clean not in ["ñ", "Ñ"]:
-            nfkd = unicodedata.normalize("NFKD", char)
-            clean = "".join([c for c in nfkd if not unicodedata.combining(c)])
-        return clean.lower()
+
 
     def _insert_symbol_image(self, original_char: str, target_char: str):
         if not self._symbol_mapper.has_image(target_char):
             return False
 
-        font_metrics = QFontMetrics(self.font())
-        char_width = int(font_metrics.horizontalAdvance("W"))
-        char_height = int(font_metrics.height())
+        font_metrics = QFontMetricsF(self.font())
+        char_width = int(round(font_metrics.horizontalAdvance("W")))
+        char_height = int(round(font_metrics.height()))
         # char_width = int(font_metrics.horizontalAdvance("W") * self.m_imageScale)
         # char_height = int(font_metrics.height() * self.m_imageScale)
 
@@ -259,7 +259,10 @@ class EditorWidget(QTextEdit):
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
 
+        font_metrics = QFontMetricsF(self.font())
+        font_height = font_metrics.height()
         block_format = QTextBlockFormat()
+        block_format.setLineHeight(font_height, 2)
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Aplicar el formato a todos los bloques del documento actual de golpe
         cursor_global = self.textCursor()
@@ -291,11 +294,21 @@ class EditorWidget(QTextEdit):
                 continue
 
             target_char = self._to_clean_char(char)
-            if not self._symbol_mapper.has_image(target_char):
+            if self._symbol_mapper.has_image(target_char):
+                self._insert_symbol_image(char, target_char)
+            else:
                 cursor.insertText(char)
-            self._insert_symbol_image(char, target_char)
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
+
+        font_metrics = QFontMetricsF(self.font())
+        font_height = font_metrics.height()
+        block_format = QTextBlockFormat()
+        block_format.setLineHeight(font_height, 2)
+        cursor_global = self.textCursor()
+        cursor_global.select(QTextCursor.SelectionType.Document)
+        cursor_global.mergeBlockFormat(block_format)
+
         self._applyMargin()
         # block_format = QTextBlockFormat()
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -304,11 +317,10 @@ class EditorWidget(QTextEdit):
 
     def _applyMargin(self):
         root_frame = self.doc.rootFrame()
-        padding = self.innerPadding
         if root_frame:
             frame_format = root_frame.frameFormat()
-            frame_format.setLeftMargin(self.margin + padding)
-            frame_format.setRightMargin(self.margin - padding)
+            frame_format.setLeftMargin(self.margin + self.innerPadding)
+            frame_format.setRightMargin(self.margin - self.innerPadding)
             frame_format.setTopMargin(self.margin)
             frame_format.setBottomMargin(self.margin)
             # frame_format.setHeight(self.page_height) # Esto hace que se cargue el alto completo de la primera página incluyendo el scrollbar si es necesario
@@ -342,49 +354,82 @@ class EditorWidget(QTextEdit):
 
         super().paintEvent(event)
 
+    
+    def _to_clean_char(self, char: str):
+        """Recibe un string como entrada, remueve sus tildes y lo devuelve como minúscula. 
+        Las letras ñ las deja con su tilde."""
+        clean = char
+        if clean not in ["ñ", "Ñ"]:
+            nfkd = unicodedata.normalize("NFKD", char)
+            clean = "".join([c for c in nfkd if not unicodedata.combining(c)])
+        return clean.lower()
 
     ## Método funcionando. Queda limpiarlo.
     def change_scale(self, scale):
+        if scale == 1.0:
+            return
 
-        self.page_height = int(self.page_height  * scale)
-        self.page_width = int(self.page_width * scale)
-        # self._init_font_size = 60 * scale
-        viewport_width = self.viewport().width() * scale
-        self.viewport().setFixedWidth(viewport_width * scale)
+        if scale > 1.0:
+            # We are scaling up. Store original values if not already stored.
+            if not hasattr(self, "_original_values"):
+                self._original_values = {
+                    "page_height": self.page_height,
+                    "page_width": self.page_width,
+                    "margin": self.margin,
+                    "innerPadding": self.innerPadding,
+                    "font_point_size": self.font().pointSizeF(),
+                    "viewport_width": self.viewport().width()
+                }
+            
+            self.page_height = self._original_values["page_height"] * scale
+            self.page_width = int(round(self._original_values["page_width"] * scale))
+            self.margin = self._original_values["margin"] * scale
+            self.innerPadding = self._original_values["innerPadding"] * scale
+            new_font_size = self._original_values["font_point_size"] * scale
+            viewport_width = int(round(self._original_values["viewport_width"] * scale))
+        else:
+            # We are restoring. Restore original values if they exist.
+            if hasattr(self, "_original_values"):
+                self.page_height = self._original_values["page_height"]
+                self.page_width = self._original_values["page_width"]
+                self.margin = self._original_values["margin"]
+                self.innerPadding = self._original_values["innerPadding"]
+                new_font_size = self._original_values["font_point_size"]
+                viewport_width = self._original_values["viewport_width"]
+                del self._original_values
+            else:
+                # Fallback if somehow called without original values
+                self.page_height = self.page_height * scale
+                self.page_width = int(round(self.page_width * scale))
+                self.margin = self.margin * scale
+                self.innerPadding = self.innerPadding * scale
+                new_font_size = self.font().pointSizeF() * scale
+                viewport_width = int(round(self.viewport().width() * scale))
+
+        self.viewport().setFixedWidth(viewport_width)
         self.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
         self.setLineWrapMode(QTextEdit.LineWrapMode.FixedPixelWidth)
         self.setLineWrapColumnOrWidth(self.page_width)
 
+        ## Monospace cross platform (preserve properties, just update size)
+        fuente = self.font()
+        fuente.setPointSizeF(new_font_size)
+        fuente.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 140)
+        self.setFont(fuente)
 
-        ## Monospace cross platform
-        fuente_original = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
-        fuente_original.setPointSize(self.font().pointSize() * scale)
-        fuente_original.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 140)
-        self.setFont(fuente_original)
-        font_metrics = QFontMetrics(self.font())
+        font_metrics = QFontMetricsF(self.font())
         font_height = font_metrics.height()
 
         block_format = QTextBlockFormat()
-
-        ### Sirve para setear la alineación del documento completo.
-        ### El problema es que no logro que el pintado de las imágenes se ajuste a la alineación
-        # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter) #### Sirve para setear la alineación del documento completo.
-
-        block_format.setLineHeight(float(font_height), 2)
+        block_format.setLineHeight(font_height, 2)
         cursor = self.textCursor()
+        self.blockSignals(True)
         cursor.setBlockFormat(block_format)
         self.setTextCursor(cursor)
 
-        self.margin = int(self.margin * scale)
-        self.innerPadding = int(self.innerPadding * scale)
-        # self.doc = self.document()
-        # self._applyMargin()
-
-        # 3. Estilo Visual
         self._applyMargin()
-        self.doc.setPageSize(QSize(self.page_width, self.page_height))
-        self.document().setPageSize(QSize(self.page_width, self.page_height))
-
-        self.setFixedWidth(self.page_width + self.innerPadding * 2)
+        self.blockSignals(False)
+        self.setFixedWidth(self.page_width + int(round(self.innerPadding * 2)))
+        self.document().setPageSize(QSizeF(self.page_width, self.page_height))
         self.switchToTextView()
         self.switchToImageView()

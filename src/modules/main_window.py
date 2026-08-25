@@ -29,10 +29,11 @@ from modules.persistence.file_manager import FileManager
 from modules.shared.models.project_model import ProjectModel
 from modules.symbols.symbol_selector_widget import SymbolSelectorWindow
 from modules.symbols.symbol_mapper import SymbolMapper
-
+from modules.utils.logger import get_logger
 
 class MainWindow(QMainWindow):
     def __init__(self, config: Config, parent=None):
+        self.logger = get_logger(self.__class__.__name__)
         super().__init__(parent)
         self.config = config
         self.setObjectName("MainWindow")
@@ -73,6 +74,10 @@ class MainWindow(QMainWindow):
         # menú superior
         self._create_menu_bar()
 
+        # Logger
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.info(f"Módulo Iniciado")           
+
     def onToggleViewChanged(self, checked: bool):  # CHECK
         if checked:
             self._toggleViewAction.setText("Modo Texto")
@@ -84,14 +89,18 @@ class MainWindow(QMainWindow):
     ## TODO: Agregar una función que rerenderice las imágenes, sin tener que pasar a texto y a imagen nuevamente
     def onFontSizeChanged(self):
 
-        new_size_str = self._fontSizeBox.currentText()
-        if not new_size_str:
+        current_str = self._fontSizeBox.currentText()
+        new_size_str = current_str.replace(",", ".").split(".")[0]
+        if not new_size_str or not new_size_str.isnumeric():
+            self.logger.info(f"Tamaño de fuente no válido: {new_size_str}")
             self._fontSizeBox.setCurrentText(str(self._editor.font().pointSize()))
         elif new_size_str == str(self._editor.font().pointSize()):
             pass
         else:
+            if current_str != new_size_str:
+                self._fontSizeBox.setCurrentText(new_size_str)
             new_size = int(
-                new_size_str
+                float(new_size_str)
             )  # Falta manejar excepciones o casos en que sea un str que no pueda convertirse a int
             self._editor.setFontSize(new_size)
 
@@ -104,6 +113,7 @@ class MainWindow(QMainWindow):
         if not self._toggleViewAction.isChecked():
             self._editor.switchToTextView()  # Está usando este método para pintar la nueva escala???
             self._editor.switchToImageView()
+        self.file_manager.set_to_unsaved()
 
     def onOpenFile(self):  ## CHECK (Solo falta revisar el paso de los switchs)
 
@@ -114,12 +124,16 @@ class MainWindow(QMainWindow):
             return None
         try:
             project = self.file_manager.openFile(file_name)
-            self._symbol_collection_editor.select_collection_by_name(
+            collection = self._symbol_collection_editor.select_collection_by_name(
                 project.collectionName
             )
             if project.imageSize is not None:
                 self._fontSizeBox.setCurrentText(f"{project.imageSize}")
                 self._editor.setFontSize(project.imageSize)
+
+            if not collection:
+                self.logger.warning(f"No se encontró la colección '{project.collectionName}'")
+                QMessageBox.information(self, "Proyecto sin símbolos", f"No se encontró la colección de símbolos '{project.collectionName}' del proyecto. Puedes elegir una o crear una nueva en 'Elegir Símbolos'")
 
             if self._toggleViewAction.isChecked():
                 self._editor.setContent(project.content)
@@ -127,19 +141,22 @@ class MainWindow(QMainWindow):
                 self._editor.switchToTextView()
                 self._editor.setContent(project.content)
                 self._editor.switchToImageView()
-
         except ValueError as e:
-            QMessageBox.critical(self, "Error", f"Error de archivo: {str(e)}")
+            self.logger.error(f"No se pudo abrir el archivo: {str(e)}")
+            QMessageBox.critical(self, "Error", f"El archivo no es válido o está corrupto: {file_name}")
 
         except ValidationError as e:
+            self.logger.error(f"El archivo no es válido o está corrupto: {file_name}")
             QMessageBox.critical(
                 self, "Error", f"El archivo no es válido o está corrupto"
             )
 
         except Exception as e:
+            self.logger.error(f"No se pudo abrir el archivo: {file_name}")
             QMessageBox.critical(
                 self, "Error", f"No se pudo abrir el archivo: {str(e)}"
             )
+        self.file_manager.set_to_saved()
 
     def onSaveFile(
         self,
@@ -155,7 +172,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(
                 self, "Error", f"No se pudo guardar el archivo: {str(error)}"
             )
-
+        self.file_manager.set_to_saved()
     def onSaveFileAs(
         self,
     ):  # CHECK. Falta pasar la lógica de obtención del contenido a la clase del editor
@@ -178,6 +195,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(
                 self, "Error", f"No se pudo crear el archivo de proyecto: {str(error)}"
             )
+        self.file_manager.set_to_saved()
 
     def onExportPdf(self):
 
@@ -202,13 +220,12 @@ class MainWindow(QMainWindow):
         ## Está escalando, pintando y restaurando después de pintar.
         ## Tengo que ver cómo manejar bien la escala y la resolución, para
         ## que sea dinámica.
-        razon = 300//96
+        razon = 3
         self._editor.change_scale(razon)
         pdf_writer = QPdfWriter(file_name)
         pdf_writer.setPageSize(QSize(self._editor.page_width, self._editor.page_height))
         pdf_writer.setPageMargins(QMarginsF(0, 0, 0, 0))
-        pdf_writer.setResolution(74)
-
+        pdf_writer.setResolution(72)
         painter = QPainter()
         if not painter.begin(pdf_writer):
             QMessageBox.critical(self, "Error", "No se pudo activar el PDF.")
@@ -235,6 +252,7 @@ class MainWindow(QMainWindow):
             painter.restore()
 
         painter.end()
+        # self.file_manager.set_to_saved()
         self._editor.change_scale(1/razon) # Parte del experimento
 
     def onExportImage(self):
@@ -342,6 +360,29 @@ class MainWindow(QMainWindow):
             """)
         )
 
+    def closeEvent(self, event):
+        if not self.file_manager.is_saved():
+            button = QMessageBox.question(
+                self,
+                "Cambios no guardados",
+                "Hay cambios sin guardar. ¿Quieres guardarlos antes de cerrar?",
+                buttons=QMessageBox.StandardButton.No
+                | QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.Cancel,
+            )            
+            if button == QMessageBox.StandardButton.Cancel:
+                event.ignore()
+
+                return
+            elif button == QMessageBox.StandardButton.Yes:
+                self.onSaveFile()
+            elif button == QMessageBox.StandardButton.No:
+                pass
+        event.accept()
+        self.logger.info("Aplicación cerrada")
+        return super().closeEvent(event)
+
+
     def _create_actions(self):
 
         # Abrir
@@ -437,6 +478,7 @@ class MainWindow(QMainWindow):
         ]
         init_size = "60"
         box.addItems(sizes)
+        box.setObjectName("FontSizeBox")
         box.setCurrentText(init_size)
         box.setEditable(True)
         box.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)

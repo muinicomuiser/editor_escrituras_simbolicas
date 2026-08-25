@@ -26,13 +26,13 @@ from modules.persistence.symbols_collections_repository import (
 )
 from modules.symbols.symbol_mapper import SymbolMapper
 from modules.shared.models.symbol_collection_model import SymbolCollectionModel
-
+from modules.utils.logger import get_logger
 
 class SymbolSelectorWindow(QMainWindow):
     symbols_changed = Signal()
 
     def __init__(self, symbol_mapper: SymbolMapper, parent=None):
-        super().__init__(parent)
+        super().__init__(parent)     
         self._symbol_mapper = symbol_mapper
 
         # Propiedades base
@@ -77,6 +77,10 @@ class SymbolSelectorWindow(QMainWindow):
         self.setWindowTitle("Editor de colección de símbolos")
         self.resize(self._base_size)
         self.setMinimumSize(self._base_size)
+
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.info(f"Módulo Iniciado")           
+
 
     def get_current_collection_name(self):
         return (
@@ -128,15 +132,18 @@ class SymbolSelectorWindow(QMainWindow):
             print("Ninguna colección seleccionada")
 
     def select_collection_by_name(self, collection_name):
-        index, collection = next(
+        match = next((
             (index, collection)
             for index, collection in enumerate(self._collections)
-            if collection.collection_name == collection_name
+            if collection.collection_name == collection_name), None
         )
-        if not collection:
-            ## ACÁ debería notificar que la colección no existe, está corrupta o algo, o manejar ids de colecciones
-            return
+        if not match:
+            self._clear_collection()
+            return None
+            
+        index, collection = match
         self.saved_symbols_list_box.setCurrentIndex(index)
+        return collection
 
     def is_empty(self):
         for surface in self._drop_surfaces.values():
@@ -172,6 +179,8 @@ class SymbolSelectorWindow(QMainWindow):
         self.saved_symbols_list_box.setCurrentIndex(-1)
         self._current_collection = {}
         self._clear_surfaces()
+        self._symbol_mapper.clear_map()
+        self.symbols_changed.emit()
 
     def _clear_surfaces(self):
         for surface in self._drop_surfaces.values():
@@ -204,18 +213,21 @@ class SymbolSelectorWindow(QMainWindow):
                         new_name
                     else:
                         return
-
                 collection = SymbolCollectionModel(
                     collection_name=new_name, directory=new_dir_name
                 )
-                self._collections_repository.set_to_unsaved()
-                self._collections_repository.update(
-                    self._current_collection.collection_name, collection
-                )
-                self._current_collection = collection
-                combobox_idx = self.saved_symbols_list_box.currentIndex()
-                self.saved_symbols_list_box.setItemText(combobox_idx, new_name)
-                self.saved_symbols_list_box.setItemData(combobox_idx, collection)
+                try:
+                    # self._collections_repository.set_to_unsaved()
+                    self._collections_repository.update(
+                        self._current_collection.collection_name, collection
+                    )
+                    self._current_collection = collection
+                    combobox_idx = self.saved_symbols_list_box.currentIndex()
+                    self.saved_symbols_list_box.setItemText(combobox_idx, new_name)
+                    self.saved_symbols_list_box.setItemData(combobox_idx, collection)
+                except OSError as error:
+                    # print()
+                    pass
 
         # ¿Qué pasa si no hay una current collection?
 

@@ -11,6 +11,7 @@ from modules.shared.models.symbol_collection_model import (
     SavedSymbolsCollectionFileModel,
     SymbolCollectionModel,
 )
+from modules.utils.logger import get_logger
 
 # ---- LÓGICA DE ARCHIVOS (PERSISTENCIA Y EXPORTACIÓN) ----
 ### Igual tengo que ver si la lógica de guardado de imágenes de colecciones irá acá
@@ -30,6 +31,10 @@ class SymbolsCollectionRepository:
         )
         self._setup_collection_file()
         self._data = self._load_to_memory()
+        
+        # Logger
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.info(f"Módulo Iniciado")      
 
     def set_to_unsaved(self):
         self._saved = False
