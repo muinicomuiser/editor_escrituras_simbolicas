@@ -2,12 +2,12 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import sys
-from typing import Optional
-from modules.config.config import Config
+from typing import Literal, Optional
+# from modules.config.config import Config
 from modules.config.config import load_config
 
 def setup_logger(
-        level: Optional[str] = None,
+        level: Optional[Literal["FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET", "CRITICAL", "WARN"]] = None,
         log_file: Optional[str] = None
 ):
     config = load_config()    
@@ -36,7 +36,7 @@ def setup_logger(
         path = Path(log_file)
         path.parent.mkdir(parents=True, exist_ok=True)
         file_handler = RotatingFileHandler(log_file)
-        file_handler.setLevel(logging, log_level.upper())
+        file_handler.setLevel(getattr(logging, log_level.upper()))
         file_formater = logging.Formatter(format_string)
         file_handler.setFormatter(file_formater)
 

@@ -1,3 +1,9 @@
+## Versión 1.0.2
+- Corrección de exportación en pdf y png. Ahora la exportación encuadra el proyecto tal como se ve en el editor. 
+
+## Versión 1.0.1
+- Corregido: Abrir archivos de trabajo cuya colección ya no existe (antes daba error)
+- Preguntar por guardar trabajo no guardado al cerrar la aplicación
 ## Versión 1.0.0
 
 - Creación de textos

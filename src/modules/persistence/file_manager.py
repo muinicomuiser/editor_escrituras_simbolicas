@@ -40,7 +40,6 @@ class FileManager:
     def openFile(self, file_name: str):
         with open(file_name, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
-        self.logger .info(f"Proyecto abierto: {file_name}")
         dto = SavedFileDTO.model_validate(raw_data)
         self._saved = True
         self._current_filename = file_name
@@ -50,7 +49,7 @@ class FileManager:
     def saveFile(self, entity: ProjectModel):
 
         if not self._current_filename:
-            self.logger .error(f"Error al guardar archivo: No hay ruta asignada.")  
+            # self.logger.error(f"Error al guardar archivo: No hay ruta asignada.")  
             raise FileNotFoundError("No hay ruta asignada.")
 
         if not self._saved:
@@ -58,7 +57,7 @@ class FileManager:
             with open(self._current_filename, "w", encoding="utf-8") as f:
                 f.write(dto.model_dump_json(indent=2))
             self._saved = True
-        self.logger .info(f"Proyecto guardado: {self._current_filename}")            
+        # self.logger.info(f"Proyecto guardado: {self._current_filename}")            
 
     def saveFileAs(self, file_name: str, entity: ProjectModel):
 
@@ -67,7 +66,7 @@ class FileManager:
         dto: SavedFileDTO = self._toDTO(entity)
         with open(file_name, "w", encoding="utf-8") as f:
             f.write(dto.model_dump_json(indent=2))
-        self.logger .info(f"Proyecto guardado: {file_name}")            
+        # self.logger.info(f"Proyecto guardado: {file_name}")            
         self._saved = True
         self._current_filename = file_name
 

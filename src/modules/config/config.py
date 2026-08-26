@@ -1,4 +1,4 @@
-import logging
+from typing import Literal
 
 from platformdirs import user_config_dir
 class Config:
@@ -13,15 +13,18 @@ class Config:
         "single": list("abcdefghijklmnñopqrstuvwxyz"),
         "compound": ["ch", "ll"],
     }
-    LOG_LEVEL = "INFO"
-    LOG_FILENAME = "escrituras_simbolicas.log"
+    LOG_LEVEL: Literal["debug", "info", "warn", "warning", "error", "critical", "fatal"] = "info"
+    # LOG_FILENAME = "escrituras_simbolicas.log"
 
     @property
-    def CONFIG_DIR():
+    def CONFIG_DIR(self):
         return user_config_dir(
-        appname=Config.APP_NAME
+        appname=self.APP_NAME
         # appauthor=self.APP_AUTOR
     )
+    @property
+    def LOGS_FILEPATH(self):
+        return f"{self.CONFIG_DIR}/escrituras_simbolicas.log"
 
 def load_config():
     config = Config()

@@ -102,7 +102,51 @@ class EditorWidget(QTextEdit):
         self.clear()
         self.setPlainText(plain_text_content)
 
+    def _generate_resource(self, target_char: str, char_width: int, char_height: int, factor: int = 1):
+        resource_id = f"sym_{target_char}_{char_width}_{char_height}"
+        resource_url = QUrl(resource_id)
+        doc = self.document()
 
+        canvas_width = char_width * factor
+        canvas_height = char_height * factor
+
+        original_pixmap = self._symbol_mapper.get_pixmap(target_char)
+        scaled_pixmap = original_pixmap.scaled(
+            canvas_width,
+            canvas_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        canvas = QPixmap(canvas_width, canvas_height)
+        canvas.fill(Qt.GlobalColor.transparent)
+
+        # Dibujar la imagen escalada en el centro exacto del lienzo
+        painter = QPainter(canvas)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        x = (canvas_width - scaled_pixmap.width()) // 2
+        y = (canvas_height - scaled_pixmap.height()) // 2
+        painter.drawPixmap(x, y, scaled_pixmap)
+        painter.end()
+
+        # Guardar el nuevo lienzo en los recursos en memoria del documento
+        doc.addResource(
+            QTextDocument.ResourceType.ImageResource, resource_url, canvas.toImage()
+        )
+
+    def prepare_for_export(self, factor: int = 4):
+        font_metrics = QFontMetrics(self.font())
+        char_width = int(font_metrics.horizontalAdvance("W"))
+        char_height = int(font_metrics.height())
+        for char in list(self._symbol_mapper._character_map.keys()):
+            self._generate_resource(char, char_width, char_height, factor)
+
+    def restore_after_export(self):
+        font_metrics = QFontMetrics(self.font())
+        char_width = int(font_metrics.horizontalAdvance("W"))
+        char_height = int(font_metrics.height())
+        for char in list(self._symbol_mapper._character_map.keys()):
+            self._generate_resource(char, char_width, char_height, 1)
 
     def _insert_symbol_image(self, original_char: str, target_char: str):
         if not self._symbol_mapper.has_image(target_char):
@@ -111,46 +155,21 @@ class EditorWidget(QTextEdit):
         font_metrics = QFontMetrics(self.font())
         char_width = int(font_metrics.horizontalAdvance("W"))
         char_height = int(font_metrics.height())
-        # char_width = int(font_metrics.horizontalAdvance("W") * self.m_imageScale)
-        # char_height = int(font_metrics.height() * self.m_imageScale)
 
-        # ID único de la imagen al tamaño (Caché)
+        # ID único de la imagen al tamaño lógico (Caché)
         resource_id = f"sym_{target_char}_{char_width}_{char_height}"
         resource_url = QUrl(resource_id)
 
         doc = self.document()
 
         if not doc.resource(QTextDocument.ResourceType.ImageResource, resource_url):
-
-            original_pixmap = self._symbol_mapper.get_pixmap(target_char)
-            # original_pixmap = QPixmap(image_path)
-            # image_path = self._symbol_mapper.get_image_path(target_char)
-            # original_pixmap = QPixmap(image_path)
-            scaled_pixmap = original_pixmap.scaled(
-                char_width,
-                char_height,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            canvas = QPixmap(char_width, char_height)
-            canvas.fill(Qt.GlobalColor.transparent)
-
-            # Dibujar la imagen escalada en el centro exacto del lienzo
-            painter = QPainter(canvas)
-            x = (char_width - scaled_pixmap.width()) // 2
-            y = (char_height - scaled_pixmap.height()) // 2
-            painter.drawPixmap(x, y, scaled_pixmap)
-            painter.end()
-
-            # Guardar el nuevo lienzo en los recursos en memoria del documento
-            doc.addResource(
-                QTextDocument.ResourceType.ImageResource, resource_url, canvas.toImage()
-            )
+            # Usamos resolución 1:1 en pantalla para máxima nitidez en el editor
+            self._generate_resource(target_char, char_width, char_height, 1)
 
         image_format = QTextImageFormat()
         image_format.setName(resource_url.toString())
-        image_format.setWidth(char_width)
-        image_format.setHeight(char_height)
+        image_format.setWidth(char_width)  # Dimensiones lógicas idénticas al texto
+        image_format.setHeight(char_height) # Dimensiones lógicas idénticas al texto
         image_format.setVerticalAlignment(
             QTextCharFormat.VerticalAlignment.AlignBaseline
         )
@@ -258,6 +277,12 @@ class EditorWidget(QTextEdit):
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
 
+        # font_metrics = QFontMetrics(self.font())
+        # font_height = font_metrics.height()
+
+        # block_format = QTextBlockFormat()
+        # block_format.setLineHeight(float(font_height), 2)
+
         block_format = QTextBlockFormat()
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Aplicar el formato a todos los bloques del documento actual de golpe
@@ -293,6 +318,12 @@ class EditorWidget(QTextEdit):
             if not self._symbol_mapper.has_image(target_char):
                 cursor.insertText(char)
             self._insert_symbol_image(char, target_char)
+
+        font_metrics = QFontMetrics(self.font())
+        font_height = font_metrics.height()
+        block_format = QTextBlockFormat()
+        block_format.setLineHeight(float(font_height), 2)            
+
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
         self._applyMargin()

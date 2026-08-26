@@ -1,6 +1,8 @@
 import os
 import math
 import textwrap
+from time import sleep
+from PySide6 import QtCore
 from PySide6.QtWidgets import (
     QComboBox,
     QMainWindow,
@@ -20,7 +22,7 @@ from PySide6.QtGui import (
     QPainter,
     QPixmap,
 )
-from PySide6.QtCore import QSize, Qt, QMarginsF, QRectF
+from PySide6.QtCore import QCoreApplication, QEventLoop, QSize, Qt, QMarginsF, QRectF
 from pydantic import ValidationError
 
 from modules.config.config import Config
@@ -79,6 +81,7 @@ class MainWindow(QMainWindow):
         self.logger.info(f"Módulo Iniciado")           
 
     def onToggleViewChanged(self, checked: bool):  # CHECK
+        # print(self._toggleViewAction.isChecked())
         if checked:
             self._toggleViewAction.setText("Modo Texto")
             self._editor.switchToTextView()
@@ -104,15 +107,16 @@ class MainWindow(QMainWindow):
             )  # Falta manejar excepciones o casos en que sea un str que no pueda convertirse a int
             self._editor.setFontSize(new_size)
 
-            if not self._toggleViewAction.isChecked():
-                self._editor.switchToTextView()  # Está usando este método para pintar la nueva escala???
-                self._editor.switchToImageView()
+            self.updateSymbolsView()
         self._editor.setFocus()
 
-    def onSymbolsChanged(self):
+    def updateSymbolsView(self):
         if not self._toggleViewAction.isChecked():
-            self._editor.switchToTextView()  # Está usando este método para pintar la nueva escala???
-            self._editor.switchToImageView()
+            self._editor.switchToTextView()
+            self._editor.switchToImageView()        
+
+    def onSymbolsChanged(self):
+        self.updateSymbolsView()
         self.file_manager.set_to_unsaved()
 
     def onOpenFile(self):  ## CHECK (Solo falta revisar el paso de los switchs)
@@ -141,6 +145,7 @@ class MainWindow(QMainWindow):
                 self._editor.switchToTextView()
                 self._editor.setContent(project.content)
                 self._editor.switchToImageView()
+            self.logger.info(f"Proyecto abierto: '{file_name}'")
         except ValueError as e:
             self.logger.error(f"No se pudo abrir el archivo: {str(e)}")
             QMessageBox.critical(self, "Error", f"El archivo no es válido o está corrupto: {file_name}")
@@ -161,13 +166,14 @@ class MainWindow(QMainWindow):
     def onSaveFile(
         self,
     ):  # CHECK. Falta pasar la lógica de obtención del contenido a la clase del editor
-
-        if self.file_manager.get_current_filename() is None:
+        current_filename = self.file_manager.get_current_filename()
+        if current_filename is None:
             self.onSaveFileAs()
             return
         project = self._projectModel()
         try:
             self.file_manager.saveFile(project)
+            self.logger.info(f"Proyecto guardado: '{current_filename}'")
         except Exception as error:
             QMessageBox.critical(
                 self, "Error", f"No se pudo guardar el archivo: {str(error)}"
@@ -191,6 +197,7 @@ class MainWindow(QMainWindow):
 
         try:
             self.file_manager.saveFileAs(file_name, project)
+            self.logger.info(f"Proyecto guardado como: '{file_name}'")
         except Exception as error:
             QMessageBox.critical(
                 self, "Error", f"No se pudo crear el archivo de proyecto: {str(error)}"
@@ -212,30 +219,29 @@ class MainWindow(QMainWindow):
         if not file_name.lower().endswith(".pdf"):
             file_name += ".pdf"
 
-        # Forzar vista de imágenes antes de renderizar la hoja física
         if self._toggleViewAction.isChecked():
             self._toggleViewAction.setChecked(False)
 
-        ## Esta sección hay que revisarla y mejorarla.
-        ## Está escalando, pintando y restaurando después de pintar.
-        ## Tengo que ver cómo manejar bien la escala y la resolución, para
-        ## que sea dinámica.
-        razon = 3
-        self._editor.change_scale(razon)
-        pdf_writer = QPdfWriter(file_name)
-        pdf_writer.setPageSize(QSize(self._editor.page_width, self._editor.page_height))
-        pdf_writer.setPageMargins(QMarginsF(0, 0, 0, 0))
-        pdf_writer.setResolution(72)
-        painter = QPainter()
-        if not painter.begin(pdf_writer):
-            QMessageBox.critical(self, "Error", "No se pudo activar el PDF.")
-            return
-
+        self._editor.prepare_for_export(factor=4)
 
         page_height = self._editor.page_height
         page_width = self._editor.page_width
-        total_height = self._editor.document().size().height()
 
+        pdf_writer = QPdfWriter(file_name)
+        pdf_writer.setPageSize(QSize(page_width, page_height))
+        pdf_writer.setPageMargins(QMarginsF(0, 0, 0, 0))
+        pdf_writer.setResolution(72)  # 72 DPI es el estándar nativo de puntos para PDF
+        
+        painter = QPainter()
+        if not painter.begin(pdf_writer):
+            QMessageBox.critical(self, "Error", "No se pudo activar el PDF.")
+            self._editor.restore_after_export()
+            return
+
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        total_height = self._editor.document().size().height()
         total_pages = max(1, math.ceil(float(total_height) / page_height))
 
         for i in range(total_pages):
@@ -252,8 +258,7 @@ class MainWindow(QMainWindow):
             painter.restore()
 
         painter.end()
-        # self.file_manager.set_to_saved()
-        self._editor.change_scale(1/razon) # Parte del experimento
+        self._editor.restore_after_export()
 
     def onExportImage(self):
         file_name, _ = QFileDialog.getSaveFileName(
@@ -267,19 +272,16 @@ class MainWindow(QMainWindow):
 
         base_path, _ = os.path.splitext(file_name)
 
-        if self._toggleViewAction.isChecked():
-            self._toggleViewAction.setChecked(False)
+        image_mode = not self._toggleViewAction.isChecked()
+        sufix = "imagen" if image_mode else "texto"
 
-        razon = 300//96
-        self._editor.setTextColor("#000000")
-        self._editor.change_scale(razon)
-
+        if image_mode:
+            self._editor.prepare_for_export(factor=4)
 
         page_height = self._editor.page_height
         page_width = self._editor.page_width
         total_height = self._editor.document().size().height()
         total_pages = max(1, math.ceil(float(total_height) / page_height))
-
         for i in range(total_pages):
             pixmap = QPixmap(page_width, page_height)
             # pixmap.fill(Qt.GlobalColor.white)
@@ -289,76 +291,28 @@ class MainWindow(QMainWindow):
             painter.save()
             painter.translate(0, -(i * page_height))
             painter.setClipRect(0, i * page_height, page_width, page_height)
-
-            self._editor.document().drawContents(
-                painter, QRectF(0, 0, page_width, total_height)
-            )
+            if image_mode:
+                self._editor.document().drawContents(
+                    painter, QRectF(0, 0, page_width, total_height)
+                )
+            else:
+                ctx = QAbstractTextDocumentLayout.PaintContext()
+                ctx.palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Text, "#333333")
+                ctx.clip = QRectF(0, 0, page_width, total_height)
+                self._editor.document().documentLayout().draw(painter, ctx)
             painter.restore()
             painter.end()
 
-            page_file_name = f"{base_path}_{i + 1}_imagen.png"
+            page_file_name = f"{base_path}_{i + 1}_{sufix}.png"
             pixmap.save(page_file_name, "PNG")
 
-        self._toggleViewAction.setChecked(True)        
-        self._editor.switchToTextView() 
-        for i in range(total_pages):
-            pixmap = QPixmap(page_width, page_height)
-            pixmap.fill(Qt.GlobalColor.transparent)
-            painter = QPainter(pixmap)
-            painter.save()
-            painter.translate(0, -(i * page_height))
-            
-            painter.setClipRect(0, i * page_height, page_width, page_height)
-            ctx = QAbstractTextDocumentLayout.PaintContext()
-            ctx.palette.setColor(QPalette.ColorGroup.All, QPalette.ColorRole.Text, "#333333")
-            ctx.clip = QRectF(0, 0, page_width, total_height)
-            self._editor.document().documentLayout().draw(painter, ctx)
-            painter.restore()
-            painter.end()
-            page_file_name = f"{base_path}_{i + 1}_texto.png"
-            pixmap.save(page_file_name, "PNG")
-
-        self._toggleViewAction.setChecked(False)   
-
-        # QMessageBox.information(
-        #     self, "Éxito", f"Se han exportado {total_pages} imágenes individuales."
-        # )
-
-
-        self._editor.change_scale(1/razon) ## Restaurar tamaño original
+        if image_mode:
+            self._editor.prepare_for_export(factor=4)
 
     def _open_symbols_window(self):
         self._symbol_collection_editor.show()
 
-    def _tutorial_window(self):
 
-        QMessageBox().information(
-            # mensaje = QMessageBox.information(
-            self,
-            "Instrucciones",
-            textwrap.dedent("""
-            <b>Elegir símbolos</b><br>
-            Presiona 'Elegir Símbolos'.<br>
-            Se abrirá una ventana que te permite abrir, crear y modificar colecciones de símbolos, arrastrando imágenes a cada letra..<br>
-            <br>
-            <b>Cambiar modo de vista</b><br>
-
-            Presiona el botón 'Modo Texto' o 'Modo Símbolos' para cambiar el modo en que se muestran los símbolos en la hoja.<br>
-            """),
-        )
-    def _info_window(self):
-
-        QMessageBox().information(
-            # mensaje = QMessageBox.information(
-            self,
-            "Información",
-            textwrap.dedent("""
-            <b>Sobre el editor de escrituras simbólicas</b><br>
-            Este programa fue realizado a partir del trabajo artístico de Valentina Morales (IG: @duerme_volantina), asociado a sus reflexiones sobre la escritura y las cosas pequeñas del mundo.<br>
-
-            Autor: Nicolás Donoso (IG: @niconicodonoso)
-            """)
-        )
 
     def closeEvent(self, event):
         if not self.file_manager.is_saved():
@@ -382,7 +336,36 @@ class MainWindow(QMainWindow):
         self.logger.info("Aplicación cerrada")
         return super().closeEvent(event)
 
+    def _about_window(self):
 
+        QMessageBox().information(
+            self,
+            "Información",
+            textwrap.dedent("""
+            <b>Sobre el editor de escrituras simbólicas</b><br>
+            <br>
+            Este programa fue realizado a partir del trabajo artístico de Valentina Morales (IG: @duerme_volantina), asociado a sus reflexiones sobre la escritura y las cosas pequeñas del mundo.<br>
+
+            Autor: Nicolás Donoso (IG: @niconicodonoso)
+            """)
+        )
+
+    def _tutorial_window(self):
+
+        QMessageBox().information(
+            self,
+            "Instrucciones",
+            textwrap.dedent("""
+            <b>Elegir símbolos</b><br>
+            Presiona 'Elegir Símbolos'.<br>
+            Se abrirá una ventana que te permite abrir, crear y modificar colecciones de símbolos, arrastrando imágenes a cada letra..<br>
+            <br>
+            <b>Cambiar modo de vista</b><br>
+
+            Presiona el botón 'Modo Texto' o 'Modo Símbolos' para cambiar el modo en que se muestran los símbolos en la hoja.<br>
+            """),
+        )
+    
     def _create_actions(self):
 
         # Abrir
@@ -415,6 +398,8 @@ class MainWindow(QMainWindow):
         # Ventana de ayuda
         self._tutorialAction = QAction("Instrucciones", self)
         self._tutorialAction.triggered.connect(self._tutorial_window)
+        self._aboutAction = QAction("Sobre el editor", self)
+        self._aboutAction.triggered.connect(self._about_window)
 
     def _create_toolbar(self):
         toolbar = QToolBar("Barra de Herramientas Main", self)
@@ -446,6 +431,7 @@ class MainWindow(QMainWindow):
 
         file_menu = self.menuBar().addMenu("&Ayuda")
         file_menu.addAction(self._tutorialAction)
+        file_menu.addAction(self._aboutAction)
 
     def _build_font_size_combobox(self) -> QComboBox:
         box = QComboBox(self)
