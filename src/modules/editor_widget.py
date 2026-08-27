@@ -1,6 +1,7 @@
+import unicodedata
+
 from PySide6.QtWidgets import QTextEdit
 from PySide6.QtGui import (
-    QBrush,
     QFont,
     QFontMetrics,
     QKeyEvent,
@@ -18,9 +19,10 @@ from PySide6.QtGui import (
     QColor,
     QTextOption,
 )
-from PySide6.QtCore import QRectF, QUrl, Qt, QSizeF
+from PySide6.QtCore import QRectF, QSize, QUrl, Qt, QSizeF
 from modules.config.config import Config
 from modules.symbols.symbol_mapper import SymbolMapper
+from modules.utils.logger import get_logger
 
 
 class EditorWidget(QTextEdit):
@@ -29,11 +31,10 @@ class EditorWidget(QTextEdit):
         self.config = config
         self._symbol_mapper = symbol_mapper
 
-        # razon = 300 // 96
-
         self.setObjectName("EditorWidget")
         self.page_height = self.config.HEIGHT
         self.page_width = self.config.WIDTH
+
 
         self._init_font_size = 60
         self._is_text_view_mode = False
@@ -48,6 +49,7 @@ class EditorWidget(QTextEdit):
         fuente_original = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
         fuente_original.setPointSize(self._init_font_size)
         fuente_original.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 140)
+        # fuente_original.setWordSpacing(0) ## Es el espaciado adicional al ancho de las letras al separar palabras.
         self.setFont(fuente_original)
 
         font_metrics = QFontMetrics(self.font())
@@ -81,39 +83,84 @@ class EditorWidget(QTextEdit):
         self.setFixedWidth(self.page_width + self.innerPadding * 2)
         self._page_color = Qt.GlobalColor.white
 
+        # Logger
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.info(f"Módulo Iniciado")      
+
     def setFontSize(self, fontSize: int):
         fuente = self.font()
         fuente.setPointSize(fontSize)
-        fuente.setWordSpacing(float(fontSize))
+        fuente.setWordSpacing(0) ## Es el espaciado adicional al ancho de las letras al separar palabras.
         self.setFont(fuente)
 
     def set_page_color(self, color: Qt.GlobalColor):
         self._page_color = color
         self.update()
 
-    # Método creado, por revisar
+
+    def getContent(self):
+        """Retorna el contenido del editor como texto plano"""
+        in_text_mode = self._is_text_view_mode
+        self.switchToTextView()
+        content = self.toPlainText()
+        if not in_text_mode:
+            self.switchToImageView()        
+        return content
+
     def setContent(self, plain_text_content: str):
+        """Carga texto plano como contenido en el editor"""
+        in_text_mode = self._is_text_view_mode
+        self.switchToTextView()
         self.clear()
         self.setPlainText(plain_text_content)
+        if not in_text_mode:
+            self.switchToImageView()
 
-    def _to_clean_char(self, char: str):
-        tildes = {
-            "á": "a",
-            "Á": "a",
-            "é": "e",
-            "É": "e",
-            "í": "i",
-            "Í": "i",
-            "ó": "o",
-            "Ó": "o",
-            "ú": "u",
-            "Ú": "u",
-            "ü": "u",
-            "Ü": "u",
-            "ñ": "ñ",
-            "Ñ": "ñ",
-        }
-        return tildes.get(char, char).lower()
+    def _generate_resource(self, target_char: str, char_width: int, char_height: int, factor: int = 1):
+        resource_id = f"sym_{target_char}_{char_width}_{char_height}"
+        resource_url = QUrl(resource_id)
+        doc = self.document()
+
+        canvas_width = char_width * factor
+        canvas_height = char_height * factor
+
+        original_pixmap = self._symbol_mapper.get_pixmap(target_char)
+        scaled_pixmap = original_pixmap.scaled(
+            canvas_width,
+            canvas_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        canvas = QPixmap(canvas_width, canvas_height)
+        canvas.fill(Qt.GlobalColor.transparent)
+
+        # Dibujar la imagen escalada en el centro exacto del lienzo
+        painter = QPainter(canvas)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        x = (canvas_width - scaled_pixmap.width()) // 2
+        y = (canvas_height - scaled_pixmap.height()) // 2
+        painter.drawPixmap(x, y, scaled_pixmap)
+        painter.end()
+
+        # Guardar el nuevo lienzo en los recursos en memoria del documento
+        doc.addResource(
+            QTextDocument.ResourceType.ImageResource, resource_url, canvas.toImage()
+        )
+
+    def prepare_for_export(self, factor: int = 4):
+        font_metrics = QFontMetrics(self.font())
+        char_width = int(font_metrics.horizontalAdvance("W"))
+        char_height = int(font_metrics.height())
+        for char in list(self._symbol_mapper._character_map.keys()):
+            self._generate_resource(char, char_width, char_height, factor)
+
+    def restore_after_export(self):
+        font_metrics = QFontMetrics(self.font())
+        char_width = int(font_metrics.horizontalAdvance("W"))
+        char_height = int(font_metrics.height())
+        for char in list(self._symbol_mapper._character_map.keys()):
+            self._generate_resource(char, char_width, char_height, 1)
 
     def _insert_symbol_image(self, original_char: str, target_char: str):
         if not self._symbol_mapper.has_image(target_char):
@@ -122,46 +169,21 @@ class EditorWidget(QTextEdit):
         font_metrics = QFontMetrics(self.font())
         char_width = int(font_metrics.horizontalAdvance("W"))
         char_height = int(font_metrics.height())
-        # char_width = int(font_metrics.horizontalAdvance("W") * self.m_imageScale)
-        # char_height = int(font_metrics.height() * self.m_imageScale)
 
-        # ID único de la imagen al tamaño (Caché)
+        # ID único de la imagen al tamaño lógico (Caché)
         resource_id = f"sym_{target_char}_{char_width}_{char_height}"
         resource_url = QUrl(resource_id)
 
         doc = self.document()
 
         if not doc.resource(QTextDocument.ResourceType.ImageResource, resource_url):
-
-            original_pixmap = self._symbol_mapper.get_pixmap(target_char)
-            # original_pixmap = QPixmap(image_path)
-            # image_path = self._symbol_mapper.get_image_path(target_char)
-            # original_pixmap = QPixmap(image_path)
-            scaled_pixmap = original_pixmap.scaled(
-                char_width,
-                char_height,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            canvas = QPixmap(char_width, char_height)
-            canvas.fill(Qt.GlobalColor.transparent)
-
-            # Dibujar la imagen escalada en el centro exacto del lienzo
-            painter = QPainter(canvas)
-            x = (char_width - scaled_pixmap.width()) // 2
-            y = (char_height - scaled_pixmap.height()) // 2
-            painter.drawPixmap(x, y, scaled_pixmap)
-            painter.end()
-
-            # Guardar el nuevo lienzo en los recursos en memoria del documento
-            doc.addResource(
-                QTextDocument.ResourceType.ImageResource, resource_url, canvas.toImage()
-            )
+            # Usamos resolución 1:1 en pantalla para máxima nitidez en el editor
+            self._generate_resource(target_char, char_width, char_height, 1)
 
         image_format = QTextImageFormat()
         image_format.setName(resource_url.toString())
-        image_format.setWidth(char_width)
-        image_format.setHeight(char_height)
+        image_format.setWidth(char_width)  # Dimensiones lógicas idénticas al texto
+        image_format.setHeight(char_height) # Dimensiones lógicas idénticas al texto
         image_format.setVerticalAlignment(
             QTextCharFormat.VerticalAlignment.AlignBaseline
         )
@@ -230,6 +252,7 @@ class EditorWidget(QTextEdit):
             return
         self._is_text_view_mode = True
 
+        scroll_position = self.verticalScrollBar().value()
         cursor = self.textCursor()
         cursor_position = cursor.position()
 
@@ -268,6 +291,12 @@ class EditorWidget(QTextEdit):
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
 
+        # font_metrics = QFontMetrics(self.font())
+        # font_height = font_metrics.height()
+
+        # block_format = QTextBlockFormat()
+        # block_format.setLineHeight(float(font_height), 2)
+
         block_format = QTextBlockFormat()
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Aplicar el formato a todos los bloques del documento actual de golpe
@@ -276,6 +305,7 @@ class EditorWidget(QTextEdit):
         cursor_global.mergeBlockFormat(block_format)
 
         self._applyMargin()
+        self.verticalScrollBar().setValue(scroll_position)        
         self.blockSignals(False)
 
     def switchToImageView(self):
@@ -283,15 +313,15 @@ class EditorWidget(QTextEdit):
         if not self._is_text_view_mode:
             return
         self._is_text_view_mode = False
-        self.blockSignals(True)
-
+        scroll_position = self.verticalScrollBar().value()
         cursor = self.textCursor()
         cursor_position = cursor.position()
+        self.blockSignals(True)
 
         current_text = self.toPlainText()
         self.clear()
 
-        cursor = self.textCursor()
+        # cursor = self.textCursor()
 
         for char in current_text:
             if char in ("\n", "\r"):  ## Verificar
@@ -302,20 +332,26 @@ class EditorWidget(QTextEdit):
             if not self._symbol_mapper.has_image(target_char):
                 cursor.insertText(char)
             self._insert_symbol_image(char, target_char)
-        self._applyMargin()
+
+        font_metrics = QFontMetrics(self.font())
+        font_height = font_metrics.height()
+        block_format = QTextBlockFormat()
+        block_format.setLineHeight(float(font_height), 2)            
+
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
+        self._applyMargin()
         # block_format = QTextBlockFormat()
         # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.verticalScrollBar().setValue(scroll_position)
         self.blockSignals(False)
 
     def _applyMargin(self):
         root_frame = self.doc.rootFrame()
-        padding = self.innerPadding
         if root_frame:
             frame_format = root_frame.frameFormat()
-            frame_format.setLeftMargin(self.margin + padding)
-            frame_format.setRightMargin(self.margin - padding)
+            frame_format.setLeftMargin(self.margin + self.innerPadding)
+            frame_format.setRightMargin(self.margin - self.innerPadding)
             frame_format.setTopMargin(self.margin)
             frame_format.setBottomMargin(self.margin)
             # frame_format.setHeight(self.page_height) # Esto hace que se cargue el alto completo de la primera página incluyendo el scrollbar si es necesario
@@ -342,10 +378,19 @@ class EditorWidget(QTextEdit):
             page_rect = QRectF(x_offset, page_top, self.page_width, self.page_height)
 
             painter.fillRect(page_rect, self._page_color)
-            # painter.fillRect(page_rect, Qt.GlobalColor.white)
             painter.setPen(QPen(QColor("#cccccc"), 2))  # La línea entre páginas
             painter.drawRect(page_rect)
 
         painter.end()
 
         super().paintEvent(event)
+
+    
+    def _to_clean_char(self, char: str):
+        """Recibe un string como entrada, remueve sus tildes y lo devuelve como minúscula. 
+        Las letras ñ las deja con su tilde."""
+        clean = char
+        if clean not in ["ñ", "Ñ"]:
+            nfkd = unicodedata.normalize("NFKD", char)
+            clean = "".join([c for c in nfkd if not unicodedata.combining(c)])
+        return clean.lower()

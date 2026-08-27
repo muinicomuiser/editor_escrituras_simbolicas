@@ -18,4 +18,8 @@ stylesheet += """
     }
     #SymbolDropSurface {
         background-color: #ffffff;
-    }"""
+    }
+    #FontSizeBox    {
+        width: 32
+    }
+    """

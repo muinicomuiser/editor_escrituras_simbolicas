@@ -4,7 +4,7 @@ from itertools import chain
 import re
 import sys
 import unicodedata
-from PySide6.QtCore import QSize, Signal, Qt
+from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QSize, Signal, Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QComboBox,
@@ -26,13 +26,15 @@ from modules.persistence.symbols_collections_repository import (
 )
 from modules.symbols.symbol_mapper import SymbolMapper
 from modules.shared.models.symbol_collection_model import SymbolCollectionModel
-
+from modules.utils.logger import get_logger
+from modules.persistence.file_service import FilesService
+from modules.exceptions.exceptions import StorageError, DirectoryRemovalError
 
 class SymbolSelectorWindow(QMainWindow):
     symbols_changed = Signal()
 
-    def __init__(self, symbol_mapper: SymbolMapper, parent=None):
-        super().__init__(parent)
+    def __init__(self, symbol_mapper: SymbolMapper, file_service: FilesService = FilesService(), parent=None):
+        super().__init__(parent)     
         self._symbol_mapper = symbol_mapper
 
         # Propiedades base
@@ -68,6 +70,8 @@ class SymbolSelectorWindow(QMainWindow):
         self.collections_persistence_file = self._collections_persistence_dir.joinpath(
             "symbol_collections.json"
         )
+
+        self._file_service = file_service
         # Setup de componentes
         self._load_collections_list()
         self._setup_toolbar()
@@ -78,16 +82,32 @@ class SymbolSelectorWindow(QMainWindow):
         self.resize(self._base_size)
         self.setMinimumSize(self._base_size)
 
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.info(f"Módulo Iniciado")           
+
+
     def get_current_collection_name(self):
         return (
             self._current_collection.collection_name if self._current_collection else ""
         )
 
     def closeEvent(self, event):
-        for value in self.characters.values():
-            for char in value:
-                self._drop_surfaces[char].pixmap = self._symbol_mapper.get_pixmap(char)
-        # self.deleteLater() # Pensar si es necesario destruir el editor, si los pixmaps los conserva el mapper
+        if not self.is_empty() and not self._collections_repository.is_saved():
+            button = self._unsaved_changes_messagebox()
+            if button == QMessageBox.StandardButton.Cancel:
+                return
+            elif button == QMessageBox.StandardButton.Yes:
+                self._save_collection()
+                for value in self.characters.values():
+                    for char in value:
+                        self._drop_surfaces[char].pixmap = self._symbol_mapper.get_pixmap(char)
+                self._on_collection_selected(self.saved_symbols_list_box.currentIndex())
+            elif button == QMessageBox.StandardButton.No:
+                self._clear_surfaces()
+                for value in self.characters.values():
+                    for char in value:
+                        self._drop_surfaces[char].pixmap = self._symbol_mapper.get_pixmap(char)
+                self._collections_repository.set_to_saved()
         event.accept()
 
     ### Acá también hay que revisar lo que pasa si el directorio de la colección no existe.
@@ -114,29 +134,37 @@ class SymbolSelectorWindow(QMainWindow):
             dir_path = self._collections_repository.get_collections_persistence_dir().joinpath(
                 selected_collection.directory
             )
-            for path in dir_path.iterdir():
-                char_image_path = path.absolute()
-                char = path.name.replace(path.suffix, "")
-                drop_surface = self._drop_surfaces.get(char, None)
-                if drop_surface:
-                    drop_surface.set_image(char_image_path)
-            self._set_mapper_collection_symbols()
+            if not dir_path.is_dir():
+                self.logger.warning(f"Símbolos de colección {selected_collection.collection_name} no encontrados. Problema al leer directorio {dir_path}")
+                QMessageBox.warning(self, "Imágenes no encontradas", "No se encontraron los símbolos de la colección. Es posible que el directorio donde estaban se haya movido, modificado o eliminado. ")
+            else:
+                for path in dir_path.iterdir():
+                    char_image_path = path.absolute()
+                    char = path.name.replace(path.suffix, "")
+                    drop_surface = self._drop_surfaces.get(char, None)
+                    if drop_surface:
+                        drop_surface.set_symbol(char_image_path)
+                self._load_symbols_on_mapper()
             self._collections_repository.set_to_saved()
             self.symbols_changed.emit()
+            self.logger.info(f"Colección cargada: {selected_collection.collection_name}")
         else:
-            # Caso donde seleccionan el placeholder ("Selecciona una colección...")
-            print("Ninguna colección seleccionada")
+            pass
 
     def select_collection_by_name(self, collection_name):
-        index, collection = next(
+        match = next((
             (index, collection)
             for index, collection in enumerate(self._collections)
-            if collection.collection_name == collection_name
+            if collection.collection_name == collection_name), None
         )
-        if not collection:
-            ## ACÁ debería notificar que la colección no existe, está corrupta o algo, o manejar ids de colecciones
-            return
+        if not match:
+            self._clear_collection()
+            return None
+            
+        index, collection = match
         self.saved_symbols_list_box.setCurrentIndex(index)
+        self.logger.info(f"Colección cargada: {collection.collection_name}")
+        return collection
 
     def is_empty(self):
         for surface in self._drop_surfaces.values():
@@ -153,7 +181,7 @@ class SymbolSelectorWindow(QMainWindow):
             elif button == QMessageBox.StandardButton.Yes:
                 self._on_save_collection()
             elif button == QMessageBox.StandardButton.No:
-                pass
+                self._collections_repository.set_to_saved()
         self._clear_collection()
 
     def _unsaved_changes_messagebox(self):
@@ -172,6 +200,8 @@ class SymbolSelectorWindow(QMainWindow):
         self.saved_symbols_list_box.setCurrentIndex(-1)
         self._current_collection = {}
         self._clear_surfaces()
+        self._symbol_mapper.clear_map()
+        self.symbols_changed.emit()
 
     def _clear_surfaces(self):
         for surface in self._drop_surfaces.values():
@@ -204,22 +234,24 @@ class SymbolSelectorWindow(QMainWindow):
                         new_name
                     else:
                         return
-
                 collection = SymbolCollectionModel(
                     collection_name=new_name, directory=new_dir_name
                 )
-                self._collections_repository.set_to_unsaved()
-                self._collections_repository.update(
-                    self._current_collection.collection_name, collection
-                )
-                self._current_collection = collection
-                combobox_idx = self.saved_symbols_list_box.currentIndex()
-                self.saved_symbols_list_box.setItemText(combobox_idx, new_name)
-                self.saved_symbols_list_box.setItemData(combobox_idx, collection)
-
-        # ¿Qué pasa si no hay una current collection?
-
-        pass
+                try:
+                    old_name = self._current_collection.collection_name
+                    self._collections_repository.update(
+                        old_name, collection
+                    )
+                    self._current_collection = collection
+                    combobox_idx = self.saved_symbols_list_box.currentIndex()
+                    self.saved_symbols_list_box.setItemText(combobox_idx, new_name)
+                    self.saved_symbols_list_box.setItemData(combobox_idx, collection)
+                    self.logger.info(f"Colección renombrada: '{old_name}' -> '{new_name}'")
+                except StorageError as error:
+                    QMessageBox.critical(
+                        self, "Error al renombrar", "Ocurrió un error al renombrar la colección. Comprueba que tienes permisos de escritura."
+                    ) 
+                    self.logger.error(f"Fallo al renombrar la colección '{old_name} a '{new_name}' | {error}")
 
     def _on_save_collection(self):
         if not self._current_collection:
@@ -243,26 +275,43 @@ class SymbolSelectorWindow(QMainWindow):
                 self._current_collection.directory
             )
         )
-        if not collection_dir.is_dir():
-            collection_dir.mkdir(parents=True, exist_ok=True)
-        files = {
-            item.name.split(".")[0]: item.name for item in collection_dir.iterdir()
-        }
-        for surface in self._drop_surfaces.values():
-            filename = files.get(surface.symbol_name, None)
-            if not surface.has_symbol() and filename:
-                Path(collection_dir.joinpath(filename)).unlink(missing_ok=True)
-            surface.save_to_file(collection_dir)
-        self._collections_repository.set_to_saved()
+        try:
+            if not collection_dir.is_dir():
+                collection_dir.mkdir(parents=True, exist_ok=True)
+            files = {
+                item.name.split(".")[0]: item.name for item in collection_dir.iterdir()
+            }
+            for surface in self._drop_surfaces.values():
+                old_filename = files.get(surface.symbol_name, None)
+                if not surface.has_symbol():
+                    if old_filename:
+                        Path(collection_dir.joinpath(old_filename)).unlink(missing_ok=True)
+                else:
+                    new_filename = collection_dir.joinpath(surface.get_file_name())
+                    pixmap = surface.pixmap
+                    bytes_array = QByteArray()
+                    buffer = QBuffer(bytes_array)
+                    buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+                    pixmap.save(buffer, surface.get_format()) 
+                    buffer.close()
+                    self._file_service.save(new_filename, bytes_array)
+                    surface.set_symbol(new_filename)
+            self._collections_repository.set_to_saved()
+            self.logger.info(f"Colección guardada: {self._current_collection.collection_name}")
+        except (OSError, StorageError) as error:
+            QMessageBox.critical(
+                self, f"Error al guardar", f"Ocurrió un error al guardar la colección '{self._current_collection.collection_name}'. Comprueba que tienes espacio en disco y permisos de escritura."
+            ) 
+            self.logger.error(f"Fallo al guardar la colección '{self._current_collection.collection_name}' | {error}")
 
+        except Exception as error:
+            QMessageBox.critical(
+                self, "Error misterioso al guardar", "Ocurrió un error misterioso al guardar la colección."
+            ) 
+            self.logger.error(f"Fallo misterioso al guardar '{self._current_collection.collection_name}' en el directorio {self._current_collection.directory}. | {error}")
     def _on_save_collection_as(self):  ## Repasar
 
-        ## Esta lógica debería ir en symbol file manager, que funciona como repository
-        ## El find, find one, add collection
         get_name_widget = QWidget(self)
-
-        ## Esto debería ser un ciclo, que preugnte el nombre, revise si existe, pregunte si quiere reemplazar
-        #  y si no, vuelva a preguntar
         new_name, ok = QInputDialog.getText(
             get_name_widget, "Nombre de la colección", "Ponle un nombre a tu colección:"
         )
@@ -290,21 +339,41 @@ class SymbolSelectorWindow(QMainWindow):
         collection_dir = (
             self._collections_repository._collections_persistence_dir.joinpath(new_dir)
         )
-        if not collection_dir.is_dir():
-            collection_dir.mkdir(parents=True, exist_ok=True)
-        for surface in self._drop_surfaces.values():
-            surface.save_to_file(collection_dir)
+        try:
+            if not collection_dir.is_dir():
+                collection_dir.mkdir(parents=True, exist_ok=True)
+            for surface in self._drop_surfaces.values():
+                if surface.has_symbol():
+                    new_filename = collection_dir.joinpath(surface.get_file_name())
+                    pixmap = surface.pixmap
+                    bytes_array = QByteArray()
+                    buffer = QBuffer(bytes_array)
+                    buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+                    pixmap.save(buffer, surface.get_format()) 
+                    buffer.close()
+                    self._file_service.save(new_filename, bytes_array)
+                    surface.set_symbol(new_filename)            
+            self._collections_repository.save(new_collection)
+            self.saved_symbols_list_box.addItem(
+                new_collection.collection_name, new_collection
+            )
+            self.saved_symbols_list_box.setCurrentIndex(
+                self.saved_symbols_list_box.count() - 1
+            )
+            self._collections_repository.set_to_saved()
+            self.logger.info(f"Colección guardada como: {new_name}")
+        except (OSError, StorageError) as error:
+            QMessageBox.critical(
+                self, "Error al guardar", "Ocurrió un error al guardar la colección. Comprueba que tienes espacio en disco y permisos de escritura."
+            ) 
+            self.logger.error(f"Fallo al guardar la colección '{new_name}' en el directorio {collection_dir} | {error}")
 
-        self._collections_repository.save(new_collection)
-        self.saved_symbols_list_box.addItem(
-            new_collection.collection_name, new_collection
-        )
-
-        # Esta acción está emitiendo la señal para actualizar los símbolos y setear el filemanager como saved
-        self.saved_symbols_list_box.setCurrentIndex(
-            self.saved_symbols_list_box.count() - 1
-        )
-
+        except Exception as error:
+            QMessageBox.critical(
+                self, "Error misterioso al guardar", "Ocurrió un error misterioso al guardar la colección."
+            ) 
+            self.logger.error(f"Fallo misterioso al guardar '{new_name}'en el directorio {collection_dir} | {error}")
+            
     def _on_delete_collection(self):
         if not self._current_collection:
             return
@@ -315,16 +384,31 @@ class SymbolSelectorWindow(QMainWindow):
             buttons=QMessageBox.StandardButton.No | QMessageBox.StandardButton.Yes,
         )
         if button == QMessageBox.StandardButton.Yes:
-            self._collections_repository.delete(
-                self._current_collection.collection_name
-            )
-            self.saved_symbols_list_box.removeItem(
-                self.saved_symbols_list_box.currentIndex()
-            )
-            self._clear_collection()
+            try:
+                removed_collectionName =  self._current_collection.collection_name
+                removed_directory =  self._current_collection.directory
+                removed_directory_path = self._collections_repository.get_collections_persistence_dir().joinpath(removed_directory)
+                self._collections_repository.delete(
+                    removed_collectionName
+                )
+                self.saved_symbols_list_box.removeItem(
+                    self.saved_symbols_list_box.currentIndex()
+                )
+                self._clear_collection()
+                self.logger.info(f"Colección eliminada: {removed_collectionName}. Directorio de colección removido: {removed_directory_path}" )
+            except DirectoryRemovalError as e:
+                QMessageBox.critical(
+                    self, "Error al eliminar", f"Ocurrió un error al eliminar la colección '{removed_collectionName}'. Comprueba que tienes permisos de escritura."
+                ) 
+                self.logger.error(f"Fallo al eliminar la colección '{removed_collectionName}' con directorio '{removed_directory_path}' | {error}")
+
+            except Exception as error:
+                QMessageBox.critical(
+                    self, "Error misterioso al eliminar", f"Ocurrió un error misterioso al eliminar la colección '{removed_collectionName}'."
+                ) 
+                self.logger.error(f"Fallo misterioso al eliminar la colección '{removed_collectionName}' con directorio '{removed_directory_path}' | {error}")
         return
 
-    ##### Revisar
     def _generate_dir_name(self, collection_name: str) -> str:
         """Genera un nombre de directorio a partir de un string. Remueve y reemplaza caracteres no permitidos para nombres de directorios."""
         nfkd = unicodedata.normalize("NFKD", collection_name)
@@ -334,7 +418,7 @@ class SymbolSelectorWindow(QMainWindow):
         timed_name = f"{clean_name}{int(datetime.now().timestamp()*1000)}"
         return timed_name.lower()
 
-    def _set_mapper_collection_symbols(self):
+    def _load_symbols_on_mapper(self):
         """Limpia los pixmap del Symbol Maper y le asigna los pixmap de cada Drop Surface"""
         self._symbol_mapper.clear_map()
         for char, surface in self._drop_surfaces.items():

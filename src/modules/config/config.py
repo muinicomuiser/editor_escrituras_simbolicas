@@ -1,18 +1,30 @@
+from typing import Literal
+
+from platformdirs import user_config_dir
 class Config:
     WIDTH, HEIGHT = 768, 980
-    ASSETS_DIR = "assets"
-    DEFAULT_ASSETS_DIR = "default_set"
-    APP_VERSION = "0.1.1"
+    APP_VERSION = "1.1.0"
+    APP_NAME = "EscriturasSimbolicas"
+    APP_AUTOR = "Nicolás Donoso (ig: @niconicodonoso @nicosodonoso - gh: muinicomuiser)"
     UNTITLED_DEFAULT_FILENAME = "sintitulo"
     MAIN_WINDOW_TITLE = "Editor de Escrituras Simbólicas"
-    # PROJECT_ROOT = Path(sys.argv[0]).resolve().parent.parent
-    # ASSETS_PATH = PROJECT_ROOT / ASSETS_DIR
 
     CHARACTERS = {
         "single": list("abcdefghijklmnñopqrstuvwxyz"),
         "compound": ["ch", "ll"],
     }
+    LOG_LEVEL: Literal["debug", "info", "warn", "warning", "error", "critical", "fatal"] = "info"
+    # LOG_FILENAME = "escrituras_simbolicas.log"
 
+    @property
+    def CONFIG_DIR(self):
+        return user_config_dir(
+        appname=self.APP_NAME
+        # appauthor=self.APP_AUTOR
+    )
+    @property
+    def LOGS_FILEPATH(self):
+        return f"{self.CONFIG_DIR}/escrituras_simbolicas.log"
 
 def load_config():
     config = Config()

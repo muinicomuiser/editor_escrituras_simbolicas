@@ -1,8 +1,11 @@
+from datetime import datetime
 import json
 import os
 import sys
 import shutil
 from pathlib import Path
+
+from pydantic import ValidationError
 from modules.persistence.dto.saved_symbols_coll_file_dto import (
     SavedSymbolsCollectionFileDTO,
     SymbolCollectionDTO,
@@ -11,12 +14,11 @@ from modules.shared.models.symbol_collection_model import (
     SavedSymbolsCollectionFileModel,
     SymbolCollectionModel,
 )
+from modules.utils.logger import get_logger
+from modules.exceptions.exceptions import StorageError, DirectoryRemovalError
 
 # ---- LÓGICA DE ARCHIVOS (PERSISTENCIA Y EXPORTACIÓN) ----
 ### Igual tengo que ver si la lógica de guardado de imágenes de colecciones irá acá
-
-## Anotación: El DTO es un contrato entre esta clase y el sistema de archivos o persistencia,
-# no participa en otras partes de la aplicación
 
 class SymbolsCollectionRepository:
     def __init__(self):
@@ -28,6 +30,11 @@ class SymbolsCollectionRepository:
         self.collections_persistence_file = self._collections_persistence_dir.joinpath(
             "symbol_collections.json"
         )
+        
+        # Logger
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.info(f"Módulo Iniciado")      
+
         self._setup_collection_file()
         self._data = self._load_to_memory()
 
@@ -63,7 +70,6 @@ class SymbolsCollectionRepository:
         )
         return collection
 
-    ## Agregar manejo de excepciones, si es que no logra reemplazar o guardar
     def update(
         self, collection_name: str, update: SymbolCollectionModel
     ) -> SymbolCollectionModel:
@@ -108,39 +114,54 @@ class SymbolsCollectionRepository:
                 if old_path.exists():
                     shutil.rmtree(old_path)
             except OSError as e:
-                print(f"Error al borrar el directorio: {e}")
-                return                
+                raise DirectoryRemovalError(f"Fallo al eliminar el directorio: {e}")           
             self._data.collections.pop(index)
             self._commit()
 
-    def _setup_collection_file(self):  # Acá falta manejo de excepciones
+    def _setup_collection_file(self):
         try:
             if not self._collections_persistence_dir.is_dir():
-                Path(self._collections_persistence_dir).mkdir(exist_ok=True, parents=True)
+                self._collections_persistence_dir.mkdir(exist_ok=True, parents=True)
             if not self.collections_persistence_file.exists():
                 payload = {"collections": []}
                 with self.collections_persistence_file.open("w", encoding="utf-8") as file:
                     json.dump(payload, file, indent=4)
-
         except OSError as e:
-            print(f"Error al crear la estructura de directorios: {e}")
+            raise StorageError(f"Fallo al crear el archivo de colecciones: {e}")
 
     def _load_to_memory(self) -> SavedSymbolsCollectionFileModel:
+            if not self.collections_persistence_file.exists():
+                self._setup_collection_file()
             try:
                 with self.collections_persistence_file.open("r", encoding="utf-8") as f:
                     raw_data = json.load(f)
                 file_dto = SavedSymbolsCollectionFileDTO.model_validate(raw_data)
                 return self._toDomain(file_dto)
-            except (json.JSONDecodeError, FileNotFoundError) as e:
-                print(f"Error leyendo el JSON: {e}. Retornando lista vacía.")
-                return SavedSymbolsCollectionFileModel(collections=[])
+            except (json.JSONDecodeError, ValidationError) as e:
+                self.logger.error(f"Archivo de datos de colecciones corrupto, respaldando y recreando: {e}")
+                try:
+                    backup_dir_path = self._collections_persistence_dir.joinpath("backup")
+                    backup_dir_path.mkdir(exist_ok=True, parents=True)
+                    timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    backup_name = f"backup_{timestamp_str}.json"
+                    new_backup_filepath = backup_dir_path.joinpath(backup_name)
+                    self.collections_persistence_file.rename(new_backup_filepath)
+                    self._setup_collection_file()
+                    return SavedSymbolsCollectionFileModel(collections=[])
+                except OSError as backup_error:
+                    raise StorageError(f"Fallo al respaldar el archivo corrupto de colecciones: {backup_error}")
+            except OSError as e:
+                raise StorageError(f"Fallo al acceder al archivo de colecciones: {e}")
 
     def _commit(self):
 
         dto: SavedSymbolsCollectionFileDTO = self._toDTO(self._data)
-        with self.collections_persistence_file.open("w", encoding="utf-8") as f:
-            f.write(dto.model_dump_json(indent=2))
-        self._saved = True
+        try:
+            with self.collections_persistence_file.open("w", encoding="utf-8") as f:
+                f.write(dto.model_dump_json(indent=2))
+            self._saved = True
+        except OSError as e:
+            raise StorageError(f"Fallo al guardar archivo: {e}")
 
     def _toDTO(
         self, entity: SavedSymbolsCollectionFileModel

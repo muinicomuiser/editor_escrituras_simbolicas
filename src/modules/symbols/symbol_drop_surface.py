@@ -34,40 +34,41 @@ class SymbolDropSurface(QWidget):
     def has_symbol(self):
         return not self.pixmap.isNull()
 
-    # Evento que se dispara cada vez que el mouse se mueve dentro del área, por cada pixel.
-    # No es necesario para mi caso
-    # def dragMoveEvent(self, event: QDropEvent):
-    #     event.accept()
-    #     return super().dragMoveEvent(event)
-
     def dropEvent(self, event: QDropEvent):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
             image_path = event.mimeData().urls()[0].toLocalFile()
-            self.set_image(image_path)
+            self.set_symbol(image_path)
             self.image_dropped.emit()
             event.accept()
+
+    def get_file_name(self):
+        return f"{self.symbol_name}{Path(self.image_path).suffix.lower()}"
+
+    def get_format(self):
+        """Retorna el formato de la imagen como str"""
+        return Path(self.image_path).suffix.replace(".", "").upper()
 
     def clear(self):
         """Asigna a la superficie un Pixmap vacío y la actualiza."""
         self.pixmap = QPixmap()
         self.update()
 
-    ## WIP
-    def save_to_file(self, symbol_dir_path: Path) -> bool:
-        """Guarda la imagen con el nombre del símbolo y la extensión de la imagen de origen en el directorio dado."""
-        if self.pixmap and self.has_symbol():
-            filename = f"{self.symbol_name}{Path(self.image_path).suffix.lower()}"
-            image_path = symbol_dir_path.joinpath(filename)
-            saved = self.pixmap.save(str(image_path))
-            if saved:
-                self.image_path = image_path
-            return saved
-        else:
-            return False
+    # def save_to_file(self, symbol_dir_path: Path) -> bool:
+    #     """Guarda la imagen con el nombre del símbolo y la extensión de la imagen de origen en el directorio dado."""
+    #     if self.pixmap and self.has_symbol():
+    #         filename = f"{self.symbol_name}{Path(self.image_path).suffix.lower()}"
+    #         image_path = symbol_dir_path.joinpath(filename)
+    #         saved = self.pixmap.save(str(image_path))
+    #         if saved:
+    #             self.image_path = image_path
+    #         return saved
+    #     else:
+    #         return False
 
-    def set_image(self, image_path: str, crop: bool = True):
-
+    def set_symbol(self, image_path: str, crop: bool = True):
+        """Instancia un QPixmap a partir de una ruta de image y la fija en el Drop Surface. 
+        El parámetro <crop: bool> permite decidir si se quiere recortar la sección vacía de una imagen con canal alfa."""
         pixmap = QPixmap(image_path)
         if not pixmap.isNull():
             if crop and pixmap.hasAlphaChannel():
@@ -78,10 +79,9 @@ class SymbolDropSurface(QWidget):
                         pixmap = ImageQt.toqpixmap(cropped)
             self.pixmap = pixmap
             self.image_path = str(image_path)
-            # self.image_dropped.emit(self.image_path, is_saved)
             self.update()
 
-    def paintEvent(self, event: QPaintEvent):
+    def paintEvent(self, _event: QPaintEvent):
         painter = QPainter(self)
 
         if not self.pixmap.isNull():

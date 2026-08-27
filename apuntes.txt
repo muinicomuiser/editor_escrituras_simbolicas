@@ -30,7 +30,7 @@ uv sync
 uv sync --no-dev (para instalar solo de producción)
 
 Ejecución con reload:
-    uv run watchfiles "python3 src/main.py -d" src
+    uv run watchfiles "python3 src/main.py -w" src
 
 ** Estructura jeráquica de QT
 
