@@ -5,5 +5,5 @@ class ProjectModel(BaseModel):
 
     version: str
     content: str
-    imageSize: int
-    collectionName: str
+    imageSize: int | None = None
+    collectionName: str = ""

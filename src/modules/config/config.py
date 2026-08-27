@@ -3,7 +3,7 @@ from typing import Literal
 from platformdirs import user_config_dir
 class Config:
     WIDTH, HEIGHT = 768, 980
-    APP_VERSION = "1.0.1"
+    APP_VERSION = "1.1.0"
     APP_NAME = "EscriturasSimbolicas"
     APP_AUTOR = "Nicolás Donoso (ig: @niconicodonoso @nicosodonoso - gh: muinicomuiser)"
     UNTITLED_DEFAULT_FILENAME = "sintitulo"

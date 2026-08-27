@@ -1,3 +1,10 @@
+Para versión 1.1.0:
+- Manejo de excepciones y notificaciones
+- Sistema de logs
+
+Para versión fix 1.0.2:
+++ Corrección de exportación en pdf y png.
+
 Para versión fix 1.0.1:
 ++ Abrir archivos de trabajo cuya colección ya no existe (ahora da un error)
 ++ Preguntar por guardar trabajo no guardado al cerrar la aplicación
@@ -47,6 +54,8 @@ Futuras mejoras:
 - Recorte opcional de sección vacía para imágenes con canal alfa
 - Mapear CH y LL
 - Importar y exportar colecciones. Importar colecciones al cambiar de versión de aplicación.
+- Service de colecciones que comunique las capas de ui con los repositorios de símbolos y catálogo de colecciones. Que reciba el nombre de la colección,
+los bytes y caracteres de las imágenes y se encargue de orquestar el guardado (también la actualización, lectura y eliminación)
 
 Mejoras listas
 - Que al importar las imágenes, se recorte el tamaño hasta abarcar solo la parte visible de los archivos png

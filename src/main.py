@@ -26,7 +26,8 @@ def main():
     config = load_config()
     setup_logger(
         level=args.log_level if args.log_level else "info",
-        log_file=config.LOGS_FILEPATH)
+        log_file=config.LOGS_FILEPATH
+        )
     logger = get_logger("Escrituras Simbólicas")
     current_platform = platform.system()
     

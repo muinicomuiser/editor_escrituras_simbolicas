@@ -97,10 +97,24 @@ class EditorWidget(QTextEdit):
         self._page_color = color
         self.update()
 
-    # Método creado, por revisar
+
+    def getContent(self):
+        """Retorna el contenido del editor como texto plano"""
+        in_text_mode = self._is_text_view_mode
+        self.switchToTextView()
+        content = self.toPlainText()
+        if not in_text_mode:
+            self.switchToImageView()        
+        return content
+
     def setContent(self, plain_text_content: str):
+        """Carga texto plano como contenido en el editor"""
+        in_text_mode = self._is_text_view_mode
+        self.switchToTextView()
         self.clear()
         self.setPlainText(plain_text_content)
+        if not in_text_mode:
+            self.switchToImageView()
 
     def _generate_resource(self, target_char: str, char_width: int, char_height: int, factor: int = 1):
         resource_id = f"sym_{target_char}_{char_width}_{char_height}"
@@ -380,51 +394,3 @@ class EditorWidget(QTextEdit):
             nfkd = unicodedata.normalize("NFKD", char)
             clean = "".join([c for c in nfkd if not unicodedata.combining(c)])
         return clean.lower()
-
-    ## Método funcionando. Queda limpiarlo.
-    def change_scale(self, scale):
-        print(self.page_height)
-        self.page_height = self.page_height  * scale
-        self.page_width = int(self.page_width * scale)
-        self.margin = self.margin * scale
-        self.innerPadding = self.innerPadding * scale
-        # self._init_font_size = 60 * scale
-        viewport_width = self.viewport().width() * scale
-        self.viewport().setFixedWidth(viewport_width)
-        self.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
-        self.setLineWrapMode(QTextEdit.LineWrapMode.FixedPixelWidth)
-        self.setLineWrapColumnOrWidth(self.page_width)
-
-
-        ## Monospace cross platform
-        fuente_original = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
-        fuente_original.setPointSize(self.font().pointSize() * scale)
-        fuente_original.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 140)
-        self.setFont(fuente_original)
-        font_metrics = QFontMetrics(self.font())
-        font_height = font_metrics.height()
-
-        block_format = QTextBlockFormat()
-
-        ### Sirve para setear la alineación del documento completo.
-        ### El problema es que no logro que el pintado de las imágenes se ajuste a la alineación
-        # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter) #### Sirve para setear la alineación del documento completo.
-        block_format.setLineHeight(float(font_height), 2)
-        cursor = self.textCursor()
-        self.blockSignals(True)
-        cursor.setBlockFormat(block_format)
-        self.setTextCursor(cursor)
-
-        # self.doc = self.document()
-        # self._applyMargin()
-        # 3. Estilo Visual
-        # self.doc.setPageSize(QSize(self.page_width, self.page_height))
-
-
-        self._applyMargin()
-        self.blockSignals(False)
-        self.setFixedWidth(self.page_width + self.innerPadding * 2)
-        self.document().setPageSize(QSize(self.page_width, self.page_height))
-        self.switchToTextView()
-        self.switchToImageView()
-        print(self.page_height)
