@@ -11,6 +11,7 @@ class CollectionsService:
     def __init__(self, collections_repository: SymbolsCollectionRepository, file_service: FilesService):
         self._collections_repository = collections_repository
         self._file_service = file_service
+        self._valid_extensions = {".png", ".jpg", ".jpeg"}
         self.logger = get_logger(self.__class__.__name__)
         self.logger.info(f"Módulo Iniciado")        
 
@@ -30,7 +31,7 @@ class CollectionsService:
         if not dir_path.is_dir():
             raise DirectoryNotFoundError(f"Directorio no encontrado: {dir_path}")
         files = self._file_service.read_dir(dir_path)
-        pngs = [f for f in files if f.suffix.lower() in [".png", ".jpg", ".jpeg"]]
+        pngs = [f for f in files if f.suffix.lower() in self._valid_extensions]
         symbols = {}
         for image in pngs:
             char = image.name.replace(image.suffix, "").lower()

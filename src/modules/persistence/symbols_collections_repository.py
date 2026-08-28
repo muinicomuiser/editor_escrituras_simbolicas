@@ -20,15 +20,17 @@ from modules.exceptions.exceptions import StorageError
 ### Igual tengo que ver si la lógica de guardado de imágenes de colecciones irá acá
 
 class SymbolsCollectionRepository:
-    def __init__(self):
+    def __init__(self, collections_dir: Path, collections_catalog_file: Path):
         self._saved = True
         self._file_extension = ".json"
-        self._collections_dir = Path(
-            getattr(sys, "_MEIPASS", os.path.abspath(".")), "data/simbolos"
-        )
-        self.collections_catalog_file = self._collections_dir.joinpath(
-            "symbol_collections.json"
-        )
+        self._collections_dir = collections_dir
+        self.collections_catalog_file = collections_catalog_file
+        # self._collections_dir = Path(
+        #     getattr(sys, "_MEIPASS", os.path.abspath(".")), "data/simbolos"
+        # )
+        # self.collections_catalog_file = self._collections_dir.joinpath(
+        #     "symbol_collections.json"
+        # )
 
         self._collections_backup_dir = self._collections_dir.joinpath("backup")
         

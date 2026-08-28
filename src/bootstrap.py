@@ -1,55 +1,64 @@
-# from dataclasses import dataclass
-# from pathlib import Path
-# from PySide6.QtWidgets import QApplication
+from dataclasses import dataclass
+import os
+from pathlib import Path
+import sys
+from modules.config.config import load_config
+from modules.persistence.projects_service import ProjectsService
+from modules.persistence.file_service import FilesService
+from modules.persistence.symbols_collections_repository import SymbolsCollectionRepository
+from modules.symbols.collections_service import CollectionsService
+from modules.symbols.symbol_mapper import SymbolMapper
+from modules.symbols.symbol_selector_widget import SymbolSelectorWindow
+from modules.editor_widget import EditorWidget
+from modules.main_window import MainWindow
 
-# import argparse
-# import signal
-# import sys
-# import os
-# import platform
-# from PySide6.QtCore import Qt
-# from PySide6.QtWidgets import QApplication, QStyleFactory
-# from modules.config.config import load_config
-# from modules.main_window import MainWindow
-# from style.stylesheet import stylesheet
-# from modules.utils.logger import get_logger, setup_logger
+@dataclass
+class AppContext:
+    main_window: MainWindow
 
-# from modules.main_window import MainWindow
+def bootstrap_application() -> AppContext:
 
-# from infrastructure.repositories import JsonCatalogRepository, DiskImageRepository
-# from core.services import CollectionsService, ProjectsService
-# from ui.windows import MainWindow
+    config = load_config()
+    
+    # 1. Configuración de rutas globales
+    collections_dir = Path(
+        getattr(sys, "_MEIPASS", os.path.abspath(".")), "data/simbolos"
+    )
+    collections_catalog_file = collections_dir.joinpath(
+        "symbol_collections.json"
+        )
 
-# @dataclass
-# class AppContext:
-#     """Contenedor simple de referencias vivas de la aplicación."""
-#     main_window: MainWindow
-#     collections_service: CollectionsService
+    # 2. Repositorios (Infraestructura)
+    files_service = FilesService()
+    collections_repository = SymbolsCollectionRepository(
+        collections_dir=collections_dir, 
+        collections_catalog_file=collections_catalog_file
+        )
 
-# def bootstrap_application() -> AppContext:
-#     """Composition Root: Construye la pila completa de dependencias."""
+    # 3. Servicios (Dominio / Aplicación)
+    projects_service = ProjectsService()
+    symbol_mapper = SymbolMapper()
+    collections_service = CollectionsService(
+        collections_repository=collections_repository,
+        file_service=files_service
+    )
     
-#     # 1. Configuración de rutas globales
-#     base_dir = Path.home() / ".local" / "share" / "mi_app"
-    
-#     # 2. Repositorios (Infraestructura)
-#     catalog_repo = JsonCatalogRepository(config_path=base_dir / "catalog.json")
-#     image_repo = DiskImageRepository(storage_path=base_dir / "images")
-    
-#     # 3. Servicios (Dominio / Aplicación)
-#     collections_service = CollectionsService(
-#         catalog_repo=catalog_repo,
-#         image_repo=image_repo
-#     )
-#     projects_service = ProjectsService(catalog_repo=catalog_repo)
-    
-#     # 4. Presentación (UI)
-#     main_window = MainWindow(
-#         collections_service=collections_service,
-#         projects_service=projects_service
-#     )
-    
-#     return AppContext(
-#         main_window=main_window,
-#         collections_service=collections_service
-#     )
+    # 4. Presentación (UI)
+    collections_editor = SymbolSelectorWindow(
+        symbol_mapper=symbol_mapper,
+        collections_service=collections_service
+        )
+    text_editor = EditorWidget(
+        config=config,
+        symbol_mapper=symbol_mapper
+        )
+    main_window = MainWindow(
+        config=config,
+        collections_editor=collections_editor,
+        text_editor=text_editor,
+        projects_service=projects_service
+    )
+   
+    return AppContext(
+        main_window=main_window
+    )

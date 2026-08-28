@@ -17,19 +17,15 @@ from PySide6.QtWidgets import (
 )
 from modules.symbols.symbol_drop_surface import SymbolDropSurface
 from modules.symbols.collections_service import CollectionsService
-from modules.persistence.symbols_collections_repository import (
-    SymbolsCollectionRepository,
-)
 from modules.symbols.symbol_mapper import SymbolMapper
 from modules.shared.models.symbol_collection_model import SymbolCollectionModel
 from modules.utils.logger import get_logger
-from modules.persistence.file_service import FilesService
 from modules.exceptions.exceptions import StorageError, DirectoryRemovalError, DirectoryNotFoundError
 
 class SymbolSelectorWindow(QMainWindow):
     symbols_changed = Signal()
 
-    def __init__(self, symbol_mapper: SymbolMapper, file_service: FilesService = FilesService(), parent=None):
+    def __init__(self, symbol_mapper: SymbolMapper, collections_service: CollectionsService, parent=None):
         super().__init__(parent)     
         self._symbol_mapper = symbol_mapper
 
@@ -59,9 +55,7 @@ class SymbolSelectorWindow(QMainWindow):
         self.setCentralWidget(self._scroll_area)
 
         # Persistencia
-        self._collections_repository = SymbolsCollectionRepository()
-        self._file_service = file_service
-        self._collections_service = CollectionsService(self._collections_repository, self._file_service)
+        self._collections_service = collections_service
         self._collection_saved = True
 
         # Setup de componentes
@@ -71,7 +65,6 @@ class SymbolSelectorWindow(QMainWindow):
 
         # style
         self.setWindowTitle("Editor de colección de símbolos")
-        # self.resize(self._base_size)
         self.setMinimumSize(self._base_size)
 
         self.logger = get_logger(self.__class__.__name__)
