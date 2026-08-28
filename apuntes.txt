@@ -43,5 +43,7 @@ Main Window: Ventana principal
     Main Window exige un widget único central
     Se crea un contenedor tipo QWiget para asignarlo como contenedor central en el layout de la ventana principal
 
-
+Empaquetar aplicación
+    En Window
+        pyinstaller --noconsole --one-dir --name EscriturasSimbolicas-v1.1.0 src/main.py 
 

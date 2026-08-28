@@ -240,8 +240,6 @@ class MainWindow(QMainWindow):
         if not file_name.lower().endswith(".pdf"):
             file_name += ".pdf"
 
-        # if self._toggleViewAction.isChecked():
-        #     self._toggleViewAction.setChecked(False)
         if not self._editor._is_text_view_mode:
             self._editor.prepare_for_export(factor=4)
 

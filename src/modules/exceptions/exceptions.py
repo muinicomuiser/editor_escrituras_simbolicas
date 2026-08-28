@@ -9,3 +9,6 @@ class UndefinedPathError(Exception):
 
 class DirectoryRemovalError(Exception):
     pass
+
+class DirectoryNotFoundError(Exception):
+    pass

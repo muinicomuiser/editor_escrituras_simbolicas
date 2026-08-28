@@ -4,7 +4,6 @@ from modules.persistence.dto.saved_file_dto import SavedFileDTO
 from modules.shared.models.project_model import ProjectModel
 from modules.utils.logger import get_logger
 from modules.exceptions.exceptions import StorageError, UndefinedPathError
-# logger = get_logger(__name__)
 
 # ---- LÓGICA DE ARCHIVOS (PERSISTENCIA Y EXPORTACIÓN) ----
 

@@ -13,6 +13,10 @@ stylesheet = ""
 
 
 stylesheet += """
+    #EditorWidget {
+        background-color: transparent;
+        color: #444444;
+    }
     #SymbolDropContainer {
         border: 1px solid #888888;
     }
