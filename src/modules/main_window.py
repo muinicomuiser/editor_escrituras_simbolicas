@@ -34,7 +34,7 @@ from modules.utils.logger import get_logger
 from modules.exceptions.exceptions import StorageError
 
 class MainWindow(QMainWindow):
-    def __init__(self, config: Config, parent=None):
+    def __init__(self, config: Config, text_editor: EditorWidget, collections_editor: SymbolSelectorWindow, projects_service: ProjectsService, parent=None):
         self.logger = get_logger(self.__class__.__name__)
         super().__init__(parent)
         self.config = config
@@ -54,18 +54,20 @@ class MainWindow(QMainWindow):
         self._symbol_mapper = SymbolMapper()
 
         # Editor
-        self._editor = EditorWidget(self.config, self._symbol_mapper, self)
+        self._editor = text_editor
+        self._editor.setParent(self)
         self.main_layout.addWidget(self._editor)
         self.main_layout.setAlignment(self._editor, Qt.AlignmentFlag.AlignHCenter)
         self.main_layout.setContentsMargins(0, 20, 0, 20)
 
         # Dependencias de persistencia
-        self.projects_service = ProjectsService()
+        self.projects_service = projects_service
         self._editor.textChanged.connect(self.projects_service.set_to_unsaved)
         self.file_service = FilesService()
 
         # Prueba de ventana de drag y drop
-        self._symbol_collection_editor = SymbolSelectorWindow(self._symbol_mapper, self.file_service, self)
+        self._symbol_collection_editor = collections_editor
+        self._symbol_collection_editor.setParent(self, Qt.WindowType.Window)
         self._symbol_collection_editor.symbols_changed.connect(self.onSymbolsChanged)
 
         # comandos de usuario (QActions)
@@ -240,8 +242,6 @@ class MainWindow(QMainWindow):
         if not file_name.lower().endswith(".pdf"):
             file_name += ".pdf"
 
-        # if self._toggleViewAction.isChecked():
-        #     self._toggleViewAction.setChecked(False)
         if not self._editor._is_text_view_mode:
             self._editor.prepare_for_export(factor=4)
 

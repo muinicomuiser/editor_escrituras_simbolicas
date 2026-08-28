@@ -19,7 +19,7 @@ from PySide6.QtGui import (
     QColor,
     QTextOption,
 )
-from PySide6.QtCore import QRectF, QSize, QUrl, Qt, QSizeF
+from PySide6.QtCore import QRectF, QUrl, Qt, QSizeF
 from modules.config.config import Config
 from modules.symbols.symbol_mapper import SymbolMapper
 from modules.utils.logger import get_logger
@@ -75,11 +75,6 @@ class EditorWidget(QTextEdit):
         self.m_image_counter = 0
 
         # 3. Estilo Visual
-        self._font_color = "#444444"
-        self._background_color = "transparent"
-        self.setStyleSheet(
-            f"QTextEdit {{ background-color: {self._background_color}; color: {self._font_color}; }}"
-        )
         self.setFixedWidth(self.page_width + self.innerPadding * 2)
         self._page_color = Qt.GlobalColor.white
 
@@ -321,8 +316,6 @@ class EditorWidget(QTextEdit):
         current_text = self.toPlainText()
         self.clear()
 
-        # cursor = self.textCursor()
-
         for char in current_text:
             if char in ("\n", "\r"):  ## Verificar
                 cursor.insertBlock()
@@ -341,8 +334,6 @@ class EditorWidget(QTextEdit):
         cursor.setPosition(cursor_position)
         self.setTextCursor(cursor)
         self._applyMargin()
-        # block_format = QTextBlockFormat()
-        # block_format.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.verticalScrollBar().setValue(scroll_position)
         self.blockSignals(False)
 

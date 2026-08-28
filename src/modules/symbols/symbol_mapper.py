@@ -18,28 +18,3 @@ class SymbolMapper:
 
     def clear_map(self):
         self._character_map.clear()
-
-    # def load_from_directory(self, path: str):
-    #     self._character_map.clear()
-    #     self._current_dir = path
-
-    #     if not os.path.exists(path) or not os.path.isdir(path):
-    #         return
-
-    #     for entry in os.scandir(path):
-    #         if entry.is_file():
-    #             filename, ext = os.path.splitext(entry.name)
-    #             if ext.lower() in self._valid_extensions:
-    #                 if filename:
-    #                     char_key = filename[0]
-    #                     # self._character_map[char_key] = entry.path
-    #                     self._character_map[char_key] = QPixmap(entry.path)
-    #                 elif filename.lower() == "space":
-    #                     # self._character_map[" "] = entry.path
-    #                     self._character_map[" "] = QPixmap(entry.path)
-    #                 # if filename:
-    #                 #     char_key = filename[0]
-    #                 #     print(char_key)
-    #                 #     self._character_map[char_key]["image_path"] = entry.path
-    #                 # elif filename.lower() == "space":
-    #                 #     self._character_map[" "]["image_path"]  = entry.path

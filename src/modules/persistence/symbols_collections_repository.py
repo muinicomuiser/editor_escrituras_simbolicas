@@ -2,7 +2,6 @@ from datetime import datetime
 import json
 import os
 import sys
-import shutil
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -15,21 +14,25 @@ from modules.shared.models.symbol_collection_model import (
     SymbolCollectionModel,
 )
 from modules.utils.logger import get_logger
-from modules.exceptions.exceptions import StorageError, DirectoryRemovalError
+from modules.exceptions.exceptions import StorageError
 
 # ---- LÓGICA DE ARCHIVOS (PERSISTENCIA Y EXPORTACIÓN) ----
 ### Igual tengo que ver si la lógica de guardado de imágenes de colecciones irá acá
 
 class SymbolsCollectionRepository:
-    def __init__(self):
+    def __init__(self, collections_dir: Path, collections_catalog_file: Path):
         self._saved = True
         self._file_extension = ".json"
-        self._collections_persistence_dir = Path(
-            getattr(sys, "_MEIPASS", os.path.abspath(".")), "data/simbolos"
-        )
-        self.collections_persistence_file = self._collections_persistence_dir.joinpath(
-            "symbol_collections.json"
-        )
+        self._collections_dir = collections_dir
+        self.collections_catalog_file = collections_catalog_file
+        # self._collections_dir = Path(
+        #     getattr(sys, "_MEIPASS", os.path.abspath(".")), "data/simbolos"
+        # )
+        # self.collections_catalog_file = self._collections_dir.joinpath(
+        #     "symbol_collections.json"
+        # )
+
+        self._collections_backup_dir = self._collections_dir.joinpath("backup")
         
         # Logger
         self.logger = get_logger(self.__class__.__name__)
@@ -47,8 +50,8 @@ class SymbolsCollectionRepository:
     def is_saved(self):
         return self._saved
 
-    def get_collections_persistence_dir(self):
-        return self._collections_persistence_dir
+    def get_collections_dir(self):
+        return self._collections_dir
 
     def findAll(self):
         collections_data = self._data.collections
@@ -70,6 +73,7 @@ class SymbolsCollectionRepository:
         )
         return collection
 
+    ## no está devolviendo nada
     def update(
         self, collection_name: str, update: SymbolCollectionModel
     ) -> SymbolCollectionModel:
@@ -84,9 +88,9 @@ class SymbolsCollectionRepository:
         )
         if match:
             index, existing = match
-            old_path = self._collections_persistence_dir.joinpath(existing.directory)
+            old_path = self._collections_dir.joinpath(existing.directory)
             new_dir = update.directory
-            new_path = self._collections_persistence_dir.joinpath(new_dir)
+            new_path = self._collections_dir.joinpath(new_dir)
 
             self._data.collections[index].collection_name = (
                 update.collection_name
@@ -100,7 +104,7 @@ class SymbolsCollectionRepository:
             self.save(update)
 
     def delete(self, collection_name: str):
-        index, existing = next(
+        match = next(
             (
                 (index, collection)
                 for index, collection in enumerate(self._data.collections)
@@ -108,44 +112,38 @@ class SymbolsCollectionRepository:
             ),
             None,
         )
-        if existing:
-            old_path = self._collections_persistence_dir.joinpath(existing.directory)
-            try:
-                if old_path.exists():
-                    shutil.rmtree(old_path)
-            except OSError as e:
-                raise DirectoryRemovalError(f"Fallo al eliminar el directorio: {e}")           
+        if match:
+            index, collection = match
             self._data.collections.pop(index)
             self._commit()
 
     def _setup_collection_file(self):
         try:
-            if not self._collections_persistence_dir.is_dir():
-                self._collections_persistence_dir.mkdir(exist_ok=True, parents=True)
-            if not self.collections_persistence_file.exists():
+            if not self._collections_dir.is_dir():
+                self._collections_dir.mkdir(exist_ok=True, parents=True)
+            if not self.collections_catalog_file.exists():
                 payload = {"collections": []}
-                with self.collections_persistence_file.open("w", encoding="utf-8") as file:
+                with self.collections_catalog_file.open("w", encoding="utf-8") as file:
                     json.dump(payload, file, indent=4)
         except OSError as e:
             raise StorageError(f"Fallo al crear el archivo de colecciones: {e}")
 
     def _load_to_memory(self) -> SavedSymbolsCollectionFileModel:
-            if not self.collections_persistence_file.exists():
+            if not self.collections_catalog_file.exists():
                 self._setup_collection_file()
             try:
-                with self.collections_persistence_file.open("r", encoding="utf-8") as f:
+                with self.collections_catalog_file.open("r", encoding="utf-8") as f:
                     raw_data = json.load(f)
                 file_dto = SavedSymbolsCollectionFileDTO.model_validate(raw_data)
                 return self._toDomain(file_dto)
             except (json.JSONDecodeError, ValidationError) as e:
                 self.logger.error(f"Archivo de datos de colecciones corrupto, respaldando y recreando: {e}")
                 try:
-                    backup_dir_path = self._collections_persistence_dir.joinpath("backup")
-                    backup_dir_path.mkdir(exist_ok=True, parents=True)
+                    self._collections_backup_dir.mkdir(exist_ok=True, parents=True)
                     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
                     backup_name = f"backup_{timestamp_str}.json"
-                    new_backup_filepath = backup_dir_path.joinpath(backup_name)
-                    self.collections_persistence_file.rename(new_backup_filepath)
+                    new_backup_filepath = self._collections_backup_dir.joinpath(backup_name)
+                    self.collections_catalog_file.rename(new_backup_filepath)
                     self._setup_collection_file()
                     return SavedSymbolsCollectionFileModel(collections=[])
                 except OSError as backup_error:
@@ -157,7 +155,7 @@ class SymbolsCollectionRepository:
 
         dto: SavedSymbolsCollectionFileDTO = self._toDTO(self._data)
         try:
-            with self.collections_persistence_file.open("w", encoding="utf-8") as f:
+            with self.collections_catalog_file.open("w", encoding="utf-8") as f:
                 f.write(dto.model_dump_json(indent=2))
             self._saved = True
         except OSError as e:
