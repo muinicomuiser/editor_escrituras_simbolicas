@@ -5,7 +5,6 @@ from PySide6.QtCore import QObject, Signal, QRunnable
 class WorkerSignals(QObject):
         
     finished = Signal(bytes, str) ## Podría hacerte un tipo de señal genérico
-    # finished = Signal(bytes, str) ## Podría hacerte un tipo de señal genérico
     error = Signal(str, str) ## Podría hacerte un tipo de señal genérico
     
 class ServiceCallWorker(QRunnable):
@@ -19,7 +18,6 @@ class ServiceCallWorker(QRunnable):
 
     def cancel(self):
         self.is_cancelled = True
-        print("cancelled")
 
     def run(self):
         try:
