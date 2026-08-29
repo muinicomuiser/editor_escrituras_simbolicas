@@ -454,6 +454,7 @@ class MainWindow(QMainWindow):
                 self.onSaveFile()
             elif button == QMessageBox.StandardButton.No:
                 pass
+        self._symbol_collection_editor.close()
         event.accept()
         self.logger.info("Aplicación cerrada")
         return super().closeEvent(event)

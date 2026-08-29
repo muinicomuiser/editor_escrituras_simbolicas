@@ -22,7 +22,7 @@ class FilesService:
         except OSError as e:
             raise StorageError(f"Fallo al guardar el archivo: {e}")
 
-    def open(self, file_name: str | Path) -> bytes | bytearray:
+    def open(self, file_name: str | Path) -> bytes:
         file_path = file_name if isinstance(file_name, Path)  else  Path(file_name)
         try:
             if not file_path.exists():
