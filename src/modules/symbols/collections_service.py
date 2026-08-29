@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 import re
 import unicodedata
 from modules.shared.models.symbol_collection_model import SymbolCollectionModel
@@ -22,7 +23,24 @@ class CollectionsService:
         return self._collections_repository.findAll()        
 
     def find_collection_by_name(self, name: str):
-        return self._collections_repository.findByName(name)        
+        return self._collections_repository.findByName(name)    
+
+    def get_collection_imagepaths(self, collection: SymbolCollectionModel):    
+        dir_path = self._collections_repository.get_collections_dir().joinpath(
+            collection.directory
+        )        
+        if not dir_path.is_dir():
+            raise DirectoryNotFoundError(f"Directorio no encontrado: {dir_path}")
+        files = self._file_service.read_dir(dir_path)
+        images_paths = [f for f in files if f.suffix.lower() in self._valid_extensions]  
+        paths_dict = {}
+        for image in images_paths:
+            char = image.name.replace(image.suffix, "").lower()
+            paths_dict[char] = image              
+        return paths_dict
+
+    def get_symbol(self, symbol_path: str | Path):
+        return self._file_service.open(symbol_path)
 
     def get_collection_symbols(self, collection: SymbolCollectionModel):
         dir_path = self._collections_repository.get_collections_dir().joinpath(
@@ -31,11 +49,11 @@ class CollectionsService:
         if not dir_path.is_dir():
             raise DirectoryNotFoundError(f"Directorio no encontrado: {dir_path}")
         files = self._file_service.read_dir(dir_path)
-        pngs = [f for f in files if f.suffix.lower() in self._valid_extensions]
+        images_paths = [f for f in files if f.suffix.lower() in self._valid_extensions]
         symbols = {}
-        for image in pngs:
+        for image in images_paths:
             char = image.name.replace(image.suffix, "").lower()
-            symbols[char] = image.read_bytes()
+            symbols[char] = self._file_service.open(image)
         return symbols        
 
     def save_collection(self, collection: SymbolCollectionModel, symbols_data: dict ):

@@ -1,3 +1,8 @@
+## Versión 1.1.1
+Refactorización
+- Manejo de carga de colecciones con workers
+- Collections Service como capa entre editor y repositorios
+
 ## Versión 1.1.0
 - Manejo de excepciones y notificaciones
 - Sistema de logs. Crea un archivo de log en la ruta de configuración de aplicaciones del usuario

@@ -1,5 +1,6 @@
 from itertools import chain
-from PySide6.QtCore import QSize, Signal, Qt
+import uuid
+from PySide6.QtCore import QSize, QThreadPool, Signal, Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QComboBox,
@@ -19,6 +20,7 @@ from modules.symbols.symbol_drop_surface import SymbolDropSurface
 from modules.symbols.collections_service import CollectionsService
 from modules.symbols.symbol_mapper import SymbolMapper
 from modules.shared.models.symbol_collection_model import SymbolCollectionModel
+from modules.shared.generic_workers import ServiceCallWorker
 from modules.utils.logger import get_logger
 from modules.exceptions.exceptions import StorageError, DirectoryRemovalError, DirectoryNotFoundError
 
@@ -45,6 +47,11 @@ class SymbolSelectorWindow(QMainWindow):
         self._collections = []
         self._current_collection = {}
         self._drop_surfaces: dict[str, SymbolDropSurface] = {}
+        self._workers_data = {
+            "total": 0,
+            "count": 0,
+            "batch_id": None
+        }
 
         # Contenedores principales
         self._container = QWidget()
@@ -109,6 +116,7 @@ class SymbolSelectorWindow(QMainWindow):
                     for char in value:
                         self._drop_surfaces[char].pixmap = self._symbol_mapper.get_pixmap(char)
                 self.set_to_saved()
+        self._workers_data["batch_id"] = None
         event.accept()
 
     def _on_collection_selected(self, index: int):
@@ -121,6 +129,7 @@ class SymbolSelectorWindow(QMainWindow):
                 return
             elif button == QMessageBox.StandardButton.Yes:
                 self._on_save_collection()
+                # await self._on_save_collection()
             elif button == QMessageBox.StandardButton.No:
                 pass
 
@@ -132,10 +141,20 @@ class SymbolSelectorWindow(QMainWindow):
             self._clear_surfaces()
             self._current_collection = selected_collection
             try:
-                collection_symbols = self._collections_service.get_collection_symbols(selected_collection)
-                for char, symbol_bytes in collection_symbols.items():
-                    if symbol_bytes and self._drop_surfaces[char]:
-                        self._drop_surfaces[char].set_symbol_bytes(symbol_bytes)
+                symbols_paths = self._collections_service.get_collection_imagepaths(selected_collection)
+                batch_id = str(uuid.uuid4())
+                self._workers_data["batch_id"] = batch_id
+                self._workers_data["total"] = len(symbols_paths)
+                for char, path in symbols_paths.items():
+                    worker = ServiceCallWorker(
+                        service_function=self._collections_service.get_symbol,
+                        element_id=char,
+                        image_path=path
+                    )
+
+                    worker.signals.finished.connect(lambda image_bytes, element_id: self._worker_done(element_id, batch_id, image_bytes))
+                    worker.signals.error.connect(lambda error, element_id: self._worker_done(element_id, batch_id))
+                    QThreadPool.globalInstance().start(worker)
 
             except StorageError as error:
                 self.logger.error(f"Fallo al leer los símbolos de colección '{selected_collection.collection_name}' | {error}")
@@ -144,7 +163,7 @@ class SymbolSelectorWindow(QMainWindow):
                 self.logger.warning(f"Símbolos de colección {selected_collection.collection_name} no encontrados. Problema al leer directorio '{selected_collection.directory}' | {error}")
                 QMessageBox.warning(self, "Directorio no encontrado", "No se encontraron los símbolos de la colección. Es posible que el directorio donde estaban se haya movido, modificado o eliminado. ")
             except Exception as error:
-                QMessageBox.error(
+                QMessageBox.warning(
                     self, "Error misterioso al cargar la colección", "Ocurrió un error misterioso al cargar los archivos de la colección. No se pudieron leer."
                 ) 
                 self.logger.error(f"Fallo misterioso al cargar '{self._current_collection.collection_name}' desde el directorio {self._current_collection.directory}. | {error}")
@@ -155,6 +174,19 @@ class SymbolSelectorWindow(QMainWindow):
                 self.logger.info(f"Colección cargada: {selected_collection.collection_name}")
         else:
             pass
+
+    def _worker_done(self, char: str, batch_id: str, image_bytes: bytes | None):
+        if batch_id != self._workers_data["batch_id"]:
+            return
+        self._workers_data["count"] += 1
+        if image_bytes:
+            self._drop_surfaces[char].set_symbol_bytes(image_bytes)
+        if self._workers_data["count"] >= self._workers_data["total"]:
+            self._load_symbols_on_mapper()
+            self.set_to_saved()
+            self.symbols_changed.emit()
+            self.logger.info(f"Colección cargada: {self._current_collection.collection_name}") 
+
 
     def select_collection_by_name(self, collection_name):
         match = next((
